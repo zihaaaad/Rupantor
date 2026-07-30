@@ -9,4 +9,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   readFile: (filePath: string) => ipcRenderer.invoke('read-file', filePath),
   writeFile: (filePath: string, content: string) => ipcRenderer.invoke('write-file', filePath, content),
   copyToVault: (filePath: string) => ipcRenderer.invoke('copy-to-vault', filePath),
+  getSystemFonts: () => ipcRenderer.invoke('get-system-fonts'),
 });

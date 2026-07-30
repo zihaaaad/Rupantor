@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, protocol, net } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { initDb, getDbData, saveDbData } from './db.js';
+import fontList from 'font-list';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -201,6 +202,17 @@ ipcMain.handle('copy-to-vault', async (event, originalPath) => {
   } catch (e) {
     console.error('Vault copy error:', e);
     return originalPath; // fallback to original if it fails
+  }
+});
+
+ipcMain.handle('get-system-fonts', async () => {
+  try {
+    const fonts = await fontList.getFonts();
+    // font-list returns names wrapped in double quotes if they contain spaces. Let's strip them safely.
+    return fonts.map((f: string) => f.replace(/^"|"$/g, ''));
+  } catch (e) {
+    console.error('Failed to get system fonts:', e);
+    return [];
   }
 });
 // Note: Window Controls are natively handled by Electron's titleBarOverlay (WCO).

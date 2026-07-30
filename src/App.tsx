@@ -52,9 +52,33 @@ function App() {
     async function loadDb() {
       if (typeof window !== 'undefined' && window.electronAPI) {
         const db = await window.electronAPI.getDbData();
-        if (db.fonts && db.fonts.length > 0) {
-          db.fonts.forEach(async (f: FontObj) => {
-            if (f.path) {
+        let allFonts = db.fonts || [];
+
+        // Automatically fetch OS System Fonts silently
+        if (window.electronAPI.getSystemFonts) {
+          try {
+            const sysFontNames = await window.electronAPI.getSystemFonts();
+            const sysFonts: FontObj[] = sysFontNames.map(name => ({
+              name: name,
+              style: 'Regular',
+              active: true,
+              fontFamily: name,
+              isSystem: true,
+              path: '' // Native OS font, no path needed for browser to render
+            }));
+            
+            // Deduplicate: Only add system fonts that aren't already in db.fonts (if user manually installed one)
+            const existingNames = new Set(allFonts.map(f => f.name));
+            const newSysFonts = sysFonts.filter(f => !existingNames.has(f.name));
+            allFonts = [...allFonts, ...newSysFonts];
+          } catch (e) {
+            console.error('Failed to load system fonts:', e);
+          }
+        }
+
+        if (allFonts.length > 0) {
+          allFonts.forEach(async (f: FontObj) => {
+            if (f.path && !f.isSystem) {
               try {
                 const fontFace = new FontFace(f.fontFamily, `url("local://${encodeURI(f.path.replace(/\\/g, '/'))}")`);
                 await fontFace.load();
@@ -63,7 +87,7 @@ function App() {
               } catch (err) { console.error("Failed to load font from path:", f.path, err); }
             }
           });
-          setFonts(db.fonts);
+          setFonts(allFonts);
         }
         if (db.scripts) {
           setScripts(db.scripts);
