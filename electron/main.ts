@@ -24,12 +24,12 @@ function createWindow() {
   win = new BrowserWindow({
     width: 1200,
     height: 800,
+    icon: path.join(__dirname, '../public/icon.png'),
     titleBarStyle: 'hidden', // Make it look premium
     titleBarOverlay: {
       color: '#050505',
       symbolColor: '#fff'
     },
-    icon: path.join(process.env.VITE_PUBLIC, 'icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.mjs'),
       nodeIntegration: false,
