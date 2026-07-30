@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*' # This triggers the workflow ONLY when you push a tag like "v1.0.0"
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build on ${{ matrix.os }}
@@ -28,8 +31,6 @@ jobs:
         
       - name: Build Application (.exe / .dmg)
         run: npm run build
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           
       - name: Upload Windows Artifact
         if: matrix.os == 'windows-latest'
