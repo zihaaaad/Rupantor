@@ -21,8 +21,12 @@ export function getDbData() {
   }
 }
 
-export function saveDbData(key: string, value: any) {
-  const data = getDbData();
-  data[key] = value;
-  fs.writeFileSync(getDbPath(), JSON.stringify(data, null, 2), 'utf8');
+export async function saveDbData(key: string, value: any) {
+  try {
+    const data = getDbData();
+    data[key] = value;
+    await fs.promises.writeFile(getDbPath(), JSON.stringify(data, null, 2), 'utf8');
+  } catch (error) {
+    console.error('Failed to save DB data:', error);
+  }
 }

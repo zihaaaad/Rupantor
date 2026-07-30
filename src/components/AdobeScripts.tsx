@@ -23,8 +23,12 @@ export function AdobeScripts({ scripts, setScripts }: AdobeScriptsProps) {
 
   const handleView = async (script: ScriptObj) => {
     setViewingScript(script);
-    const content = await (window as any).electronAPI.readFile(script.path);
-    setCodeContent(content);
+    try {
+      const content = await (window as any).electronAPI.readFile(script.path);
+      setCodeContent(content);
+    } catch (e) {
+      setCodeContent('// Error: File could not be read or does not exist at path:\n// ' + script.path);
+    }
   };
 
   const handleDelete = (e: React.MouseEvent, id: string) => {

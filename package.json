@@ -18,12 +18,14 @@
       "output": "release/${version}"
     },
     "win": {
-      "target": ["nsis", "portable"]
+      "target": ["nsis", "portable"],
+      "icon": "build/icon.ico"
     },
     "mac": {
       "target": ["dmg"],
       "category": "public.app-category.productivity",
-      "artifactName": "${productName}-v${version}-${os}-${arch}.${ext}"
+      "artifactName": "${productName}-v${version}-${os}-${arch}.${ext}",
+      "icon": "build/icon.png"
     },
     "nsis": {
       "oneClick": false,

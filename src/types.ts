@@ -14,3 +14,16 @@ export interface ScriptObj {
   path: string;
   targetApp: 'Photoshop' | 'AfterEffects' | 'Illustrator';
 }
+
+declare global {
+  interface Window {
+    electronAPI: {
+      installFont: (fontPath: string, fontName: string) => Promise<{success: boolean, message: string}>;
+      uninstallFont: (fontName: string) => Promise<{success: boolean, message: string}>;
+      getDbData: () => Promise<any>;
+      saveDbData: (key: string, value: any) => void;
+      executeScript: (scriptPath: string, targetApp: string) => Promise<{success: boolean, message: string}>;
+      readFile: (filePath: string) => Promise<string>;
+    }
+  }
+}

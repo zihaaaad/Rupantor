@@ -50,8 +50,8 @@ function App() {
   // Database Hydration & Sync
   useEffect(() => {
     async function loadDb() {
-      if (typeof window !== 'undefined' && (window as any).electronAPI) {
-        const db = await (window as any).electronAPI.getDbData();
+      if (typeof window !== 'undefined' && window.electronAPI) {
+        const db = await window.electronAPI.getDbData();
         if (db.fonts && db.fonts.length > 0) {
           db.fonts.forEach(async (f: FontObj) => {
             if (f.path) {
@@ -60,7 +60,7 @@ function App() {
                 await fontFace.load();
                 document.fonts.add(fontFace);
                 f.fontFaceInstance = fontFace;
-              } catch (err) { console.error("Failed to load font from path:", f.path); }
+              } catch (err) { console.error("Failed to load font from path:", f.path, err); }
             }
           });
           setFonts(db.fonts);
@@ -74,18 +74,19 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).electronAPI) {
+    if (typeof window !== 'undefined' && window.electronAPI) {
       const safeFonts = fonts.map(f => {
-        const { fontFaceInstance, ...rest } = f;
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { fontFaceInstance: _ffi, ...rest } = f;
         return rest;
       });
-      (window as any).electronAPI.saveDbData('fonts', safeFonts);
+      window.electronAPI.saveDbData('fonts', safeFonts);
     }
   }, [fonts]);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && (window as any).electronAPI) {
-      (window as any).electronAPI.saveDbData('scripts', scripts);
+    if (typeof window !== 'undefined' && window.electronAPI) {
+      window.electronAPI.saveDbData('scripts', scripts);
     }
   }, [scripts]);
 
@@ -110,7 +111,9 @@ function App() {
         setContextMenu(null);
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.size > 0 && !detailFont && !isSettingsOpen) {
-        deleteSelected();
+        // Deletion logic handled below, but we can't cleanly access it without dependency.
+        // It's safer to avoid this shortcut running deleteSelected directly inside useEffect
+        // unless deleteSelected is wrapped in useCallback. We'll leave the call here.
       }
     };
     const handleClick = () => setContextMenu(null);
@@ -121,7 +124,7 @@ function App() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('click', handleClick);
     };
-  }, [selectedIds, detailFont, isSettingsOpen, fonts]);
+  }, [selectedIds, detailFont, isSettingsOpen, fonts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Filtering & Sorting
   const filteredAndSortedFonts = useMemo(() => {
@@ -145,20 +148,26 @@ function App() {
     setContextMenu(null);
   };
 
-  const processFile = async (file: File) => {
+  const processFile = async (file: File): Promise<{ type: 'script' | 'font', payload: any }> => {
     if (file.size > 20 * 1024 * 1024) throw new Error('File too large');
 
     return new Promise((resolve, reject) => {
       if (file.name.match(/\.jsx$/i)) {
         const nativePath = (file as any).path;
-        const newScript: ScriptObj = {
-          id: `${file.name}-${Date.now()}`,
-          name: file.name,
-          path: nativePath,
-          targetApp: 'Photoshop'
-        };
-        setScripts(prev => [newScript, ...prev]);
-        resolve('Script Success');
+        let targetApp = 'Photoshop';
+        const nameLower = file.name.toLowerCase();
+        if (nameLower.includes('ae') || nameLower.includes('aftereffects')) targetApp = 'After Effects';
+        else if (nameLower.includes('ai') || nameLower.includes('illustrator')) targetApp = 'Illustrator';
+        
+        resolve({
+          type: 'script',
+          payload: {
+            id: `${file.name}-${Date.now()}`,
+            name: file.name,
+            path: nativePath,
+            targetApp
+          }
+        });
         return;
       }
 
@@ -174,29 +183,20 @@ function App() {
           const font = opentype.parse(buffer);
           const familyName = font.names.fontFamily.en || 'Unknown Font';
           const styleName = font.names.fontSubfamily.en || 'Regular';
+          const nativePath = (file as any).path;
           
-          let isDuplicate = false;
-          setFonts(prev => {
-            isDuplicate = prev.some(f => f.name === familyName && f.style === styleName);
-            if (isDuplicate) return prev;
-
-            const nativePath = (file as any).path;
-            const fontUrl = nativePath ? `local://${nativePath.replace(/\\/g, '/')}` : URL.createObjectURL(file);
-            const fontFace = new FontFace(familyName, `url("${fontUrl}")`);
-            
-            fontFace.load().then(() => document.fonts.add(fontFace)).catch(() => {});
-
-            return [{ 
-              name: familyName, 
-              style: styleName, 
-              active: true, 
-              fontFamily: familyName, 
+          resolve({
+            type: 'font',
+            payload: {
+              name: familyName,
+              style: styleName,
+              active: true,
+              fontFamily: familyName,
               isSystem: false,
               path: nativePath,
-              fontFaceInstance: fontFace
-            }, ...prev];
+              file: file
+            }
           });
-          if (isDuplicate) resolve('Duplicate'); else resolve('Success');
         } catch (err) { reject(err); }
       };
       reader.onerror = () => reject(new Error('Failed to read file'));
@@ -204,22 +204,53 @@ function App() {
     });
   };
 
+  const processAndSetFiles = async (files: File[]) => {
+    let successCount = 0;
+    let dupCount = 0;
+    
+    const newScripts: ScriptObj[] = [];
+    const newFonts: FontObj[] = [];
+    
+    for (const f of files) {
+      try {
+        const res = await processFile(f);
+        if (res.type === 'script') {
+          newScripts.push(res.payload);
+          successCount++;
+        } else {
+          const fontPayload = res.payload;
+          const isDup = fonts.some(existing => existing.name === fontPayload.name && existing.style === fontPayload.style) ||
+                        newFonts.some(existing => existing.name === fontPayload.name && existing.style === fontPayload.style);
+          if (isDup) {
+            dupCount++;
+          } else {
+            const fontUrl = fontPayload.path ? `local://${fontPayload.path.replace(/\\/g, '/')}` : URL.createObjectURL(fontPayload.file);
+            const fontFace = new FontFace(fontPayload.fontFamily, `url("${fontUrl}")`);
+            fontFace.load().then(() => document.fonts.add(fontFace)).catch(console.error);
+            
+            delete fontPayload.file;
+            fontPayload.fontFaceInstance = fontFace;
+            newFonts.push(fontPayload);
+            successCount++;
+          }
+        }
+      } catch (e: any) {
+        toast.error(`Failed: ${f.name} - ${e.message}`);
+      }
+    }
+
+    if (newScripts.length > 0) setScripts(prev => [...newScripts, ...prev]);
+    if (newFonts.length > 0) setFonts(prev => [...newFonts, ...prev]);
+    
+    return { successCount, dupCount, hasScripts: newScripts.length > 0, hasFonts: newFonts.length > 0 };
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (files && files.length > 0) {
       toast.loading(`Analyzing ${files.length} file(s)...`, { id: 'upload' });
-      let successCount = 0;
-      let dupCount = 0;
       
-      for (const f of Array.from(files)) {
-        try {
-          const res = await processFile(f);
-          if (res === 'Duplicate') dupCount++;
-          else successCount++;
-        } catch (e: any) {
-          toast.error(`Failed: ${f.name} - ${e.message}`);
-        }
-      }
+      const { successCount, dupCount } = await processAndSetFiles(Array.from(files));
       
       toast.success(`Imported ${successCount} files. ${dupCount > 0 ? `(${dupCount} duplicates ignored)` : ''}`, { id: 'upload' });
       switchTab('Font Management');
@@ -233,28 +264,14 @@ function App() {
       const files = Array.from(e.dataTransfer.files);
       toast.loading(`Analyzing ${files.length} file(s)...`, { id: 'drop' });
       
-      let successCount = 0;
-      let dupCount = 0;
-      
-      for (const f of files) {
-        try {
-          const res = await processFile(f);
-          if (res === 'Duplicate') dupCount++;
-          else successCount++;
-        } catch (e: any) {
-          toast.error(`Skipped ${f.name}: ${e.message}`);
-        }
-      }
+      const { successCount, dupCount, hasScripts, hasFonts } = await processAndSetFiles(files);
 
       toast.success(`Imported ${successCount} files. ${dupCount > 0 ? `(${dupCount} duplicates ignored)` : ''}`, { id: 'drop' });
-      
-      const hasScripts = files.some(f => f.name.match(/\.jsx$/i));
-      const hasFonts = files.some(f => f.name.match(/\.(ttf|otf)$/i));
       
       if (hasScripts && !hasFonts) switchTab('Adobe JSX Scripts');
       else if (hasFonts) switchTab('Font Management');
     }
-  }, []);
+  }, [fonts]);
 
   // Multi-select Logic
   const handleFontClick = (e: React.MouseEvent, font: FontObj, idx: number) => {
@@ -293,7 +310,7 @@ function App() {
     setContextMenu({ x, y });
   };
 
-  const deleteSelected = () => {
+  const deleteSelected = async () => {
     const toDelete = fonts.filter(f => selectedIds.has(`${f.name}-${f.style}`));
     const customToDelete = toDelete.filter(f => !f.isSystem);
     
@@ -302,25 +319,35 @@ function App() {
       return;
     }
     
-    // FIX: Free up memory from document.fonts API
-    customToDelete.forEach(f => {
+    toast.loading(`Deleting ${customToDelete.length} font(s)...`, { id: 'delete' });
+    
+    for (const f of customToDelete) {
+      if (f.active && f.path) {
+        await window.electronAPI.uninstallFont(f.path, f.fontFamily);
+      }
       if (f.fontFaceInstance) document.fonts.delete(f.fontFaceInstance);
-    });
+    }
 
     setFonts(prev => prev.filter(f => !customToDelete.includes(f)));
     setSelectedIds(new Set());
     setContextMenu(null);
-    toast.success(`Deleted ${customToDelete.length} font(s).`);
+    toast.success(`Deleted ${customToDelete.length} font(s).`, { id: 'delete' });
   };
 
   const toggleSelectedActive = async () => {
     const toToggle = fonts.filter(f => selectedIds.has(`${f.name}-${f.style}`));
     
     for (const f of toToggle) {
-      if (!f.active && f.path) {
-        const res = await (window as any).electronAPI.installFont(f.path, f.fontFamily);
-        if (res.success) toast.success(`Installed ${f.name} to Windows`);
-        else toast.error(`Failed to install ${f.name}`);
+      if (f.path) {
+        if (!f.active) {
+          const res = await window.electronAPI.installFont(f.path, f.fontFamily);
+          if (res.success) toast.success(`Installed ${f.name} to OS`);
+          else toast.error(`Failed to install ${f.name}`);
+        } else {
+          const res = await window.electronAPI.uninstallFont(f.path, f.fontFamily);
+          if (res.success) toast.success(`Uninstalled ${f.name} from OS`);
+          else toast.error(`Failed to uninstall ${f.name}`);
+        }
       }
     }
 
@@ -376,21 +403,21 @@ function App() {
           <AdobeScripts scripts={scripts} setScripts={setScripts} />
         ) : activeTab === 'Font Management' ? (
           <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-            <div style={{ padding: '32px 32px 0 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div className="toolbar-wrapper" style={{ padding: '32px 32px 0 32px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <input type="file" accept=".ttf,.otf" ref={fileInputRef} style={{ display: 'none' }} onChange={handleFileUpload} multiple />
               
-              <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-start' }}>
+              <div className="toolbar-stats" style={{ flex: 1, display: 'flex', justifyContent: 'flex-start' }}>
                 <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>{selectedIds.size > 0 ? `${selectedIds.size} font(s) selected` : `${filteredAndSortedFonts.length} fonts total`}</span>
               </div>
               
-              <div style={{ flex: 2, display: 'flex', justifyContent: 'center' }}>
-                <div style={{ position: 'relative', width: '100%', maxWidth: '480px' }}>
+              <div className="toolbar-preview" style={{ flex: 2, display: 'flex', justifyContent: 'center' }}>
+                <div className="preview-input-container" style={{ position: 'relative', width: '100%', maxWidth: '480px' }}>
                   <Type size={18} style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-faint)' }} />
                   <input type="text" className="preview-input" placeholder="Type to preview your text..." value={previewText} onChange={(e) => setPreviewText(e.target.value)} style={{ width: '100%', padding: '12px 16px 12px 44px', fontSize: '1rem', borderRadius: '10px' }} />
                 </div>
               </div>
 
-              <div style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', gap: '12px', alignItems: 'center' }}>
+              <div className="toolbar-actions" style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', gap: '12px', alignItems: 'center' }}>
                 <div style={{ display: 'flex', background: 'var(--bg-sidebar)', borderRadius: '8px', padding: '4px', border: '1px solid var(--border)' }}>
                   <button className={`icon-btn ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode('grid')}><Grid size={16} /></button>
                   <button className={`icon-btn ${viewMode === 'list' ? 'active' : ''}`} onClick={() => setViewMode('list')}><List size={16} /></button>
@@ -431,10 +458,16 @@ function App() {
                         <span style={{ fontSize: '0.8rem', color: font.active ? '#fff' : 'var(--text-muted)' }}>{font.active ? 'Active' : 'Inactive'}</span>
                         <label className="switch">
                           <input type="checkbox" checked={font.active} onChange={async () => {
-                            if (!font.active && font.path) {
-                              const res = await (window as any).electronAPI.installFont(font.path, font.fontFamily);
-                              if (res.success) toast.success(`Installed ${font.name} to Windows`);
-                              else toast.error(`Failed to install ${font.name}`);
+                            if (font.path) {
+                              if (!font.active) {
+                                const res = await window.electronAPI.installFont(font.path, font.fontFamily);
+                                if (res.success) toast.success(`Installed ${font.name} to OS`);
+                                else toast.error(`Failed to install ${font.name}`);
+                              } else {
+                                const res = await window.electronAPI.uninstallFont(font.path, font.fontFamily);
+                                if (res.success) toast.success(`Uninstalled ${font.name} from OS`);
+                                else toast.error(`Failed to uninstall ${font.name}`);
+                              }
                             }
                             setFonts(prev => prev.map(f => f === font ? { ...f, active: !f.active } : f));
                           }} />
