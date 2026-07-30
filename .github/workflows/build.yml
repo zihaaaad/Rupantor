@@ -1,0 +1,66 @@
+name: CI/CD Build Pipeline
+
+on:
+  push:
+    tags:
+      - 'v*' # This triggers the workflow ONLY when you push a tag like "v1.0.0"
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        # Build simultaneously on Windows and macOS virtual machines
+        os: [windows-latest, macos-latest]
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          
+      - name: Install Dependencies
+        run: npm install
+        
+      - name: Build Application (.exe / .dmg)
+        run: npm run build
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Upload Windows Artifact
+        if: matrix.os == 'windows-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rupantor-Windows
+          path: release/**/*.exe
+          
+      - name: Upload Mac Artifact
+        if: matrix.os == 'macos-latest'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rupantor-Mac
+          path: release/**/*.dmg
+
+  # Once both Windows and Mac are done building, bundle them into a GitHub Release
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all generated installers
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          
+      - name: Publish to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/Rupantor-Windows/**/*.exe
+            artifacts/Rupantor-Mac/**/*.dmg
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
