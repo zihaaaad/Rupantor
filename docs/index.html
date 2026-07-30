@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rupantor | The Ultimate Workflow Assistant</title>
+    <meta name="description" content="Rupantor is a premium workflow automation tool for creatives. Manage fonts effortlessly and execute Adobe scripts directly into Photoshop, Illustrator, and After Effects.">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;700;900&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Abstract Background Elements -->
+    <div class="bg-shape shape-1"></div>
+    <div class="bg-shape shape-2"></div>
+    <div class="bg-shape shape-3"></div>
+    
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <img src="logo.png" alt="Rupantor Logo" class="logo-img">
+                <span class="logo-text">Rupantor</span>
+            </div>
+            <div class="nav-links">
+                <a href="#features">Features</a>
+                <a href="https://github.com/zihaaaad/Rupantor" target="_blank" class="github-link">
+                    <i data-lucide="github"></i> Source Code
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <main>
+        <section class="hero">
+            <div class="hero-content">
+                <div class="badge">
+                    <span class="badge-dot"></span>
+                    <span id="version-badge">v1.0.11 Available Now</span>
+                </div>
+                <h1 class="hero-title">The Ultimate Workflow<br><span class="text-gradient">Assistant for Creators.</span></h1>
+                <p class="hero-subtitle">Instantly install system fonts, execute complex Adobe scripts, and manage your assets with a lightning-fast native application built for professionals.</p>
+                
+                <div class="download-section">
+                    <div class="btn-group">
+                        <a href="#" id="win-download" class="btn btn-primary disabled">
+                            <i data-lucide="monitor"></i>
+                            <div class="btn-text">
+                                <span class="btn-title">Download for Windows</span>
+                                <span class="btn-meta" id="win-meta">Fetching latest...</span>
+                            </div>
+                        </a>
+                        <a href="#" id="mac-download" class="btn btn-secondary disabled">
+                            <i data-lucide="apple"></i>
+                            <div class="btn-text">
+                                <span class="btn-title">Download for macOS</span>
+                                <span class="btn-meta" id="mac-meta">Apple Silicon & Intel</span>
+                            </div>
+                        </a>
+                    </div>
+                    <p class="download-info">Free and Open Source. No sign-up required.</p>
+                </div>
+            </div>
+            
+            <div class="hero-image-wrapper">
+                <div class="glass-panel screenshot-mockup">
+                    <div class="mockup-header">
+                        <div class="mac-btns">
+                            <span></span><span></span><span></span>
+                        </div>
+                        <div class="mockup-title">Rupantor</div>
+                    </div>
+                    <div class="mockup-body">
+                        <!-- We will CSS style a fake UI representing the app -->
+                        <div class="sidebar">
+                            <div class="sidebar-item active"><i data-lucide="type"></i> Typography</div>
+                            <div class="sidebar-item"><i data-lucide="terminal-square"></i> Adobe Scripts</div>
+                            <div class="sidebar-item"><i data-lucide="layout-grid"></i> Collections</div>
+                        </div>
+                        <div class="main-view">
+                            <div class="font-grid">
+                                <div class="font-card">
+                                    <div class="fc-head">Nikosh <span>Regular</span></div>
+                                    <div class="fc-preview bn-text">আমার সোনার বাংলা</div>
+                                </div>
+                                <div class="font-card">
+                                    <div class="fc-head">Inter <span>Bold</span></div>
+                                    <div class="fc-preview">The quick brown fox</div>
+                                </div>
+                                <div class="font-card">
+                                    <div class="fc-head">Playfair <span>Italic</span></div>
+                                    <div class="fc-preview font-serif italic">Typography is art</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="features" class="features">
+            <div class="section-heading">
+                <h2>Designed for Efficiency</h2>
+                <p>Everything you need to accelerate your design and automation workflow.</p>
+            </div>
+            
+            <div class="feature-grid">
+                <div class="feature-card glass-panel">
+                    <div class="feature-icon"><i data-lucide="type"></i></div>
+                    <h3>Smart Font Management</h3>
+                    <p>Drag and drop `.ttf` or `.otf` files to instantly preview typography waterfalls. Toggle fonts actively to your Windows or Mac OS with a single click.</p>
+                </div>
+                
+                <div class="feature-card glass-panel">
+                    <div class="feature-icon"><i data-lucide="cpu"></i></div>
+                    <h3>Native Adobe Execution</h3>
+                    <p>Store your ExtendScript `.jsx` files and execute them directly into Photoshop, Illustrator, and After Effects using ultra-fast COM/AppleScript bridges.</p>
+                </div>
+                
+                <div class="feature-card glass-panel">
+                    <div class="feature-icon"><i data-lucide="lock"></i></div>
+                    <h3>Secure Asset Vault</h3>
+                    <p>All imported fonts and scripts are safely backed up to a persistent local vault. Even if you delete your original downloads, Rupantor keeps them safe.</p>
+                </div>
+
+                <div class="feature-card glass-panel">
+                    <div class="feature-icon"><i data-lucide="globe"></i></div>
+                    <h3>Universal Unicode Support</h3>
+                    <p>Flawlessly handles complex text rendering. Safely imports and manages non-English font files (Bangla, Arabic, Cyrillic) without corrupting your OS registry.</p>
+                </div>
+                
+                <div class="feature-card glass-panel">
+                    <div class="feature-icon"><i data-lucide="zap"></i></div>
+                    <h3>Lightweight Architecture</h3>
+                    <p>Built with React, Vite, and Electron. Highly optimized architecture ensures your system never slows down, even when managing hundreds of assets.</p>
+                </div>
+                
+                <div class="feature-card glass-panel">
+                    <div class="feature-icon"><i data-lucide="code-2"></i></div>
+                    <h3>Live Code Editing</h3>
+                    <p>Need to tweak a script variable? Rupantor features a built-in code editor so you can update and save your `.jsx` scripts instantly without opening VSCode.</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <div class="footer-content">
+            <div class="logo">
+                <img src="logo.png" alt="Rupantor Logo" class="logo-img grayscale">
+                <span class="logo-text text-muted">Rupantor</span>
+            </div>
+            <p class="copyright">&copy; 2026 Open Source Project.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
