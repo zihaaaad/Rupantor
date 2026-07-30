@@ -1,7 +1,7 @@
 {
   "name": "zcentre",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.4",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -13,20 +13,25 @@
   "build": {
     "appId": "com.rupantor.app",
     "productName": "Rupantor",
+    "artifactName": "${productName}-v${version}-${os}-${arch}-Setup.${ext}",
     "directories": {
       "output": "release/${version}"
     },
     "win": {
-      "target": ["nsis"]
+      "target": ["nsis", "portable"]
     },
     "mac": {
       "target": ["dmg"],
-      "category": "public.app-category.productivity"
+      "category": "public.app-category.productivity",
+      "artifactName": "${productName}-v${version}-${os}-${arch}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true
+    },
+    "portable": {
+      "artifactName": "${productName}-v${version}-${os}-${arch}-Portable.${ext}"
     }
   },
   "dependencies": {
