@@ -37,14 +37,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Rupantor-Windows
-          path: release/**/*.exe
+          path: release/*.exe
           
       - name: Upload Mac Artifact
         if: matrix.os == 'macos-latest'
         uses: actions/upload-artifact@v4
         with:
           name: Rupantor-Mac
-          path: release/**/*.dmg
+          path: release/*.dmg
 
   # Once both Windows and Mac are done building, bundle them into a GitHub Release
   release:
@@ -60,8 +60,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            artifacts/Rupantor-Windows/**/*.exe
-            artifacts/Rupantor-Mac/**/*.dmg
+            artifacts/Rupantor-Windows/*.exe
+            artifacts/Rupantor-Mac/*.dmg
           generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
