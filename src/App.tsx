@@ -369,7 +369,7 @@ function App() {
         </header>
 
         {activeTab === 'Dashboard' ? (
-          <Dashboard filteredFeatures={filteredDashboard} switchTab={switchTab} searchQuery={searchQuery} />
+          <Dashboard filteredFeatures={filteredDashboard} switchTab={switchTab} />
         ) : activeTab === 'Smart Collections' ? (
           <Collections collections={collections} />
         ) : activeTab === 'Adobe JSX Scripts' ? (

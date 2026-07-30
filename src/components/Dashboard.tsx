@@ -3,10 +3,9 @@ import { SearchX } from 'lucide-react';
 interface DashboardProps {
   filteredFeatures: any[];
   switchTab: (tab: string) => void;
-  searchQuery: string;
 }
 
-export function Dashboard({ filteredFeatures, switchTab, searchQuery }: DashboardProps) {
+export function Dashboard({ filteredFeatures, switchTab }: DashboardProps) {
   return (
     <div className="dashboard-container">
       <div className="dashboard-header">

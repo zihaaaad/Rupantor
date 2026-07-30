@@ -1,10 +1,1 @@
-let electron = require("electron");
-//#region electron/preload.ts
-electron.contextBridge.exposeInMainWorld("electronAPI", {
-	installFont: (fontPath, fontName) => electron.ipcRenderer.invoke("install-font", fontPath, fontName),
-	getDbData: () => electron.ipcRenderer.invoke("get-db-data"),
-	saveDbData: (key, value) => electron.ipcRenderer.send("save-db-data", key, value),
-	executeScript: (scriptPath, targetApp) => electron.ipcRenderer.invoke("execute-script", scriptPath, targetApp),
-	readFile: (filePath) => electron.ipcRenderer.invoke("read-file", filePath)
-});
-//#endregion
+let e=require("electron");e.contextBridge.exposeInMainWorld(`electronAPI`,{installFont:(t,n)=>e.ipcRenderer.invoke(`install-font`,t,n),getDbData:()=>e.ipcRenderer.invoke(`get-db-data`),saveDbData:(t,n)=>e.ipcRenderer.send(`save-db-data`,t,n),executeScript:(t,n)=>e.ipcRenderer.invoke(`execute-script`,t,n),readFile:t=>e.ipcRenderer.invoke(`read-file`,t)});
