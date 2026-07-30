@@ -1,7 +1,7 @@
 {
   "name": "zcentre",
   "private": true,
-  "version": "1.0.4",
+  "version": "1.0.5",
   "type": "module",
   "main": "dist-electron/main.js",
   "scripts": {
@@ -18,11 +18,16 @@
       "output": "release/${version}"
     },
     "win": {
-      "target": ["nsis", "portable"],
+      "target": [
+        "nsis",
+        "portable"
+      ],
       "icon": "build/icon.ico"
     },
     "mac": {
-      "target": ["dmg"],
+      "target": [
+        "dmg"
+      ],
       "category": "public.app-category.productivity",
       "artifactName": "${productName}-v${version}-${os}-${arch}.${ext}",
       "icon": "build/icon.png"
