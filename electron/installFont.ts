@@ -18,7 +18,9 @@ export async function installFontToOS(fontPath: string, fontName: string): Promi
       if (!fs.existsSync(macFontsDir)) fs.mkdirSync(macFontsDir, { recursive: true });
 
       try {
-        if (fontPath !== targetPath) fs.copyFileSync(fontPath, targetPath);
+        if (fontPath !== targetPath && !fs.existsSync(targetPath)) {
+          fs.copyFileSync(fontPath, targetPath);
+        }
         return resolve(true);
       } catch (e) {
         console.error('Mac Font Copy failed:', e);
@@ -40,7 +42,9 @@ export async function installFontToOS(fontPath: string, fontName: string): Promi
       if (!fs.existsSync(userFontsDir)) fs.mkdirSync(userFontsDir, { recursive: true });
 
       try {
-        if (fontPath !== targetPath) fs.copyFileSync(fontPath, targetPath);
+        if (fontPath !== targetPath && !fs.existsSync(targetPath)) {
+          fs.copyFileSync(fontPath, targetPath);
+        }
       } catch (e) {
         console.error('Windows Copy failed:', e);
         return resolve(false);
@@ -136,7 +140,11 @@ export async function uninstallFontFromOS(fontPath: string, fontName: string): P
       const psScript = `
 $registryName = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${encodedRegistry}'))
 $registryPath = "HKCU:\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts"
-Remove-ItemProperty -Path $registryPath -Name $registryName -ErrorAction SilentlyContinue
+$item = Get-ItemProperty -Path $registryPath -Name $registryName -ErrorAction SilentlyContinue
+if ($item) {
+    # File might be locked, but we remove the registry key so it unloads on next reboot at least.
+    Remove-ItemProperty -Path $registryPath -Name $registryName -ErrorAction SilentlyContinue
+}
 
 Add-Type -TypeDefinition @"
 using System;

@@ -103,12 +103,18 @@ ipcMain.handle('execute-script', async (event, scriptPath, targetApp) => {
 
     // 🍏 macOS AppleScript Execution
     if (platform === 'darwin') {
-      if (targetApp !== 'Photoshop') {
-        return resolve({ success: false, message: `AppleScript for ${targetApp} not implemented` });
+      let appId = 'com.adobe.Photoshop';
+      let command = 'do javascript';
+      
+      if (targetApp === 'Illustrator') {
+        appId = 'com.adobe.illustrator';
+      } else if (targetApp === 'After Effects') {
+        appId = 'com.adobe.AfterEffects';
+        command = 'DoScriptFile';
       }
 
       const appleScript = `on run argv
-        tell application id "com.adobe.Photoshop" to do javascript (POSIX file (item 1 of argv))
+        tell application id "${appId}" to ${command} (POSIX file (item 1 of argv))
       end run`;
 
       execFile('osascript', ['-e', appleScript, '--', scriptPath], (error) => {
@@ -119,9 +125,12 @@ ipcMain.handle('execute-script', async (event, scriptPath, targetApp) => {
     
     // 🪟 Windows 10/11 COM Object Execution
     else if (platform === 'win32') {
-      if (targetApp !== 'Photoshop') {
-        return resolve({ success: false, message: `COM execution for ${targetApp} not implemented` });
+      if (targetApp === 'After Effects') {
+        return resolve({ success: false, message: `Windows execution for After Effects currently unsupported` });
       }
+
+      let comName = 'Photoshop.Application';
+      if (targetApp === 'Illustrator') comName = 'Illustrator.Application';
 
       const encodedPath = Buffer.from(scriptPath).toString('base64');
       const psScript = `
@@ -131,11 +140,17 @@ ipcMain.handle('execute-script', async (event, scriptPath, targetApp) => {
           throw "Script file does not exist at path: $scriptPath"
         }
         try {
-          $app = [System.Runtime.InteropServices.Marshal]::GetActiveObject("Photoshop.Application")
+          $app = [System.Runtime.InteropServices.Marshal]::GetActiveObject("${comName}")
         } catch {
-          $app = New-Object -ComObject Photoshop.Application
+          $app = New-Object -ComObject ${comName}
         }
-        $app.DoJavaScriptFile($scriptPath)
+        
+        if ("${targetApp}" -eq "Illustrator") {
+            $app.DoJavaScriptFile($scriptPath)
+        } else {
+            $app.DoJavaScriptFile($scriptPath)
+        }
+        
         [System.Runtime.InteropServices.Marshal]::ReleaseComObject($app) | Out-Null
       `;
 
@@ -158,6 +173,16 @@ ipcMain.handle('read-file', async (event, filePath) => {
   } catch (e) {
     console.error('File read error:', e);
     return 'Error reading file.';
+  }
+});
+
+ipcMain.handle('write-file', async (event, filePath, content) => {
+  try {
+    await fs.promises.writeFile(filePath, content, 'utf8');
+    return { success: true };
+  } catch (e) {
+    console.error('File write error:', e);
+    return { success: false };
   }
 });
 // Note: Window Controls are natively handled by Electron's titleBarOverlay (WCO).

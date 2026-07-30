@@ -93,12 +93,27 @@ export function AdobeScripts({ scripts, setScripts }: AdobeScriptsProps) {
           <div className="modal-content large" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div><h2 className="modal-title">{viewingScript.name}</h2></div>
-              <button className="modal-close" onClick={() => setViewingScript(null)}><X size={20} /></button>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button className="btn-secondary" style={{ padding: '6px 12px' }} onClick={async () => {
+                  toast.loading('Saving script...', { id: 'save' });
+                  const res = await (window as any).electronAPI.writeFile(viewingScript.path, codeContent);
+                  if (res.success) toast.success('Script saved successfully!', { id: 'save' });
+                  else toast.error('Failed to save script', { id: 'save' });
+                }}>Save</button>
+                <button className="modal-close" onClick={() => setViewingScript(null)}><X size={20} /></button>
+              </div>
             </div>
-            <div className="modal-body scrollable">
-              <pre style={{ background: '#111', padding: '16px', borderRadius: '8px', overflowX: 'auto', fontSize: '0.85rem', color: '#0f0', fontFamily: 'monospace' }}>
-                <code>{codeContent}</code>
-              </pre>
+            <div className="modal-body scrollable" style={{ padding: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <textarea 
+                value={codeContent}
+                onChange={e => setCodeContent(e.target.value)}
+                spellCheck={false}
+                style={{ 
+                  flex: 1, background: '#111', color: '#0f0', fontFamily: 'monospace', 
+                  fontSize: '0.85rem', padding: '16px', border: 'none', resize: 'none',
+                  outline: 'none', width: '100%', height: '100%', lineHeight: '1.5'
+                }} 
+              />
             </div>
           </div>
         </div>

@@ -7,4 +7,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveDbData: (key: string, value: any) => ipcRenderer.send('save-db-data', key, value),
   executeScript: (scriptPath: string, targetApp: string) => ipcRenderer.invoke('execute-script', scriptPath, targetApp),
   readFile: (filePath: string) => ipcRenderer.invoke('read-file', filePath),
+  writeFile: (filePath: string, content: string) => ipcRenderer.invoke('write-file', filePath, content),
 });

@@ -24,6 +24,7 @@ declare global {
       saveDbData: (key: string, value: any) => void;
       executeScript: (scriptPath: string, targetApp: string) => Promise<{success: boolean, message: string}>;
       readFile: (filePath: string) => Promise<string>;
+      writeFile: (filePath: string, content: string) => Promise<{success: boolean}>;
     }
   }
 }
