@@ -56,7 +56,7 @@ function App() {
           db.fonts.forEach(async (f: FontObj) => {
             if (f.path) {
               try {
-                const fontFace = new FontFace(f.fontFamily, `url("local://${f.path.replace(/\\/g, '/')}")`);
+                const fontFace = new FontFace(f.fontFamily, `url("local://${encodeURI(f.path.replace(/\\/g, '/'))}")`);
                 await fontFace.load();
                 document.fonts.add(fontFace);
                 f.fontFaceInstance = fontFace;
@@ -181,8 +181,17 @@ function App() {
         try {
           const buffer = e.target?.result as ArrayBuffer;
           const font = opentype.parse(buffer);
-          const familyName = font.names.fontFamily.en || 'Unknown Font';
-          const styleName = font.names.fontSubfamily.en || 'Regular';
+          
+          const getSafeName = (nameObj: any, fallback: string) => {
+            if (!nameObj) return fallback;
+            if (nameObj.en) return nameObj.en;
+            const values = Object.values(nameObj);
+            return values.length > 0 ? (values[0] as string) : fallback;
+          };
+
+          const familyName = getSafeName(font.names.fontFamily, file.name.replace(/\.(ttf|otf)$/i, ''));
+          const styleName = getSafeName(font.names.fontSubfamily, 'Regular');
+          
           const nativePath = (file as any).path;
           
           resolve({
@@ -224,7 +233,7 @@ function App() {
           if (isDup) {
             dupCount++;
           } else {
-            const fontUrl = fontPayload.path ? `local://${fontPayload.path.replace(/\\/g, '/')}` : URL.createObjectURL(fontPayload.file);
+            const fontUrl = fontPayload.path ? `local://${encodeURI(fontPayload.path.replace(/\\/g, '/'))}` : URL.createObjectURL(fontPayload.file);
             const fontFace = new FontFace(fontPayload.fontFamily, `url("${fontUrl}")`);
             fontFace.load().then(() => document.fonts.add(fontFace)).catch(console.error);
             
@@ -451,7 +460,7 @@ function App() {
                         <span className="font-name">{font.name}</span>
                         <span className="font-style">{font.style} {font.isSystem ? '' : '(Custom)'}</span>
                       </div>
-                      <div className="card-preview" style={{ fontFamily: font.fontFamily, fontWeight: font.style.toLowerCase().includes('bold') ? 700 : 400, fontStyle: font.style.toLowerCase().includes('italic') ? 'italic' : 'normal' }}>
+                      <div className="card-preview" style={{ fontFamily: `"${font.fontFamily}"`, fontWeight: font.style.toLowerCase().includes('bold') ? 700 : 400, fontStyle: font.style.toLowerCase().includes('italic') ? 'italic' : 'normal' }}>
                         {previewText || 'Aa'}
                       </div>
                       <div className="card-footer" onClick={(e) => e.stopPropagation()}>
@@ -515,7 +524,7 @@ function App() {
             
             <div className="modal-body scrollable" style={{ paddingTop: 0 }}>
               <div className="modal-row" style={{ borderBottom: 'none', paddingBottom: 0 }}><span className="modal-label">Typography Waterfall</span></div>
-              <div className="waterfall-container" style={{ fontFamily: detailFont.fontFamily, fontWeight: detailFont.style.toLowerCase().includes('bold') ? 700 : 400, fontStyle: detailFont.style.toLowerCase().includes('italic') ? 'italic' : 'normal' }}>
+              <div className="waterfall-container" style={{ fontFamily: `"${detailFont.fontFamily}"`, fontWeight: detailFont.style.toLowerCase().includes('bold') ? 700 : 400, fontStyle: detailFont.style.toLowerCase().includes('italic') ? 'italic' : 'normal' }}>
                 <div className="waterfall-row"><span className="waterfall-size">12px</span><span className="waterfall-text" style={{ fontSize: '12px' }}>{previewText || 'The quick brown fox jumps over the lazy dog'}</span></div>
                 <div className="waterfall-row"><span className="waterfall-size">16px</span><span className="waterfall-text" style={{ fontSize: '16px' }}>{previewText || 'The quick brown fox jumps over the lazy dog'}</span></div>
                 <div className="waterfall-row"><span className="waterfall-size">24px</span><span className="waterfall-text" style={{ fontSize: '24px' }}>{previewText || 'The quick brown fox jumps'}</span></div>
