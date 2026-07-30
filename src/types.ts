@@ -25,6 +25,7 @@ declare global {
       executeScript: (scriptPath: string, targetApp: string) => Promise<{success: boolean, message: string}>;
       readFile: (filePath: string) => Promise<string>;
       writeFile: (filePath: string, content: string) => Promise<{success: boolean}>;
+      copyToVault: (filePath: string) => Promise<string>;
     }
   }
 }

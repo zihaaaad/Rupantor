@@ -24,7 +24,7 @@ function createWindow() {
   win = new BrowserWindow({
     width: 1200,
     height: 800,
-    icon: path.join(__dirname, '../public/icon.png'),
+    icon: path.join(process.env.VITE_PUBLIC, 'icon.png'),
     titleBarStyle: 'hidden', // Make it look premium
     titleBarOverlay: {
       color: '#050505',
@@ -183,6 +183,24 @@ ipcMain.handle('write-file', async (event, filePath, content) => {
   } catch (e) {
     console.error('File write error:', e);
     return { success: false };
+  }
+});
+
+ipcMain.handle('copy-to-vault', async (event, originalPath) => {
+  try {
+    const vaultDir = path.join(app.getPath('userData'), 'Vault');
+    if (!fs.existsSync(vaultDir)) fs.mkdirSync(vaultDir, { recursive: true });
+    
+    const fileName = path.basename(originalPath);
+    // Add timestamp to prevent overwriting files with the same name
+    const safeName = Date.now() + '_' + fileName;
+    const destPath = path.join(vaultDir, safeName);
+    
+    await fs.promises.copyFile(originalPath, destPath);
+    return destPath;
+  } catch (e) {
+    console.error('Vault copy error:', e);
+    return originalPath; // fallback to original if it fails
   }
 });
 // Note: Window Controls are natively handled by Electron's titleBarOverlay (WCO).

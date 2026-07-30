@@ -151,7 +151,7 @@ function App() {
   const processFile = async (file: File): Promise<{ type: 'script' | 'font', payload: any }> => {
     if (file.size > 20 * 1024 * 1024) throw new Error('File too large');
 
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       if (file.name.match(/\.jsx$/i)) {
         const nativePath = (file as any).path;
         let targetApp = 'Photoshop';
@@ -159,12 +159,17 @@ function App() {
         if (nameLower.includes('ae') || nameLower.includes('aftereffects')) targetApp = 'After Effects';
         else if (nameLower.includes('ai') || nameLower.includes('illustrator')) targetApp = 'Illustrator';
         
+        let safePath = nativePath;
+        if ((window as any).electronAPI?.copyToVault) {
+          safePath = await (window as any).electronAPI.copyToVault(nativePath);
+        }
+
         resolve({
           type: 'script',
           payload: {
             id: `${file.name}-${Date.now()}`,
             name: file.name,
-            path: nativePath,
+            path: safePath,
             targetApp
           }
         });
@@ -193,6 +198,10 @@ function App() {
           const styleName = getSafeName(font.names.fontSubfamily, 'Regular');
           
           const nativePath = (file as any).path;
+          let safePath = nativePath;
+          if ((window as any).electronAPI?.copyToVault) {
+            safePath = await (window as any).electronAPI.copyToVault(nativePath);
+          }
           
           resolve({
             type: 'font',
@@ -202,7 +211,7 @@ function App() {
               active: true,
               fontFamily: familyName,
               isSystem: false,
-              path: nativePath,
+              path: safePath,
               file: file
             }
           });
