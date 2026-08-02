@@ -39,7 +39,7 @@ async function fetchLatestRelease() {
         if (winSetupUrl) {
             winBtn.href = winSetupUrl;
             winBtn.classList.remove('disabled');
-            winMeta.textContent = `${version} â€¢ 64-bit`;
+            winMeta.textContent = `${version} • 64-bit`;
         } else {
             winMeta.textContent = 'Windows build unavailable';
         }
@@ -47,7 +47,7 @@ async function fetchLatestRelease() {
         if (macDmgUrl) {
             macBtn.href = macDmgUrl;
             macBtn.classList.remove('disabled');
-            macMeta.textContent = `${version} â€¢ Universal`;
+            macMeta.textContent = `${version} • Universal`;
         } else {
             macMeta.textContent = 'Mac build unavailable';
         }
