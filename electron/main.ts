@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { initDb, getDbData, saveDbData } from './db.js';
 import fontList from 'font-list';
+import { autoUpdater } from 'electron-updater';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -45,7 +46,26 @@ function createWindow() {
   } else {
     win.loadFile(path.join(RENDERER_DIST, 'index.html'));
   }
+
+  win.webContents.on('did-finish-load', () => {
+    // Suppress errors if run in dev mode without a package.json github block
+    autoUpdater.checkForUpdatesAndNotify().catch(() => console.log("AutoUpdater not running in dev"));
+  });
 }
+
+// Setup autoUpdater listeners
+autoUpdater.on('update-available', (info) => {
+  win?.webContents.send('update-available', info);
+});
+autoUpdater.on('update-downloaded', (info) => {
+  win?.webContents.send('update-downloaded', info);
+});
+ipcMain.handle('download-update', () => {
+  autoUpdater.downloadUpdate();
+});
+ipcMain.handle('quit-and-install', () => {
+  autoUpdater.quitAndInstall();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {

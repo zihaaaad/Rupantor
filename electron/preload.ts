@@ -11,4 +11,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   copyToVault: (filePath: string) => ipcRenderer.invoke('copy-to-vault', filePath),
   deleteFromVault: (filePath: string) => ipcRenderer.invoke('delete-from-vault', filePath),
   getSystemFonts: () => ipcRenderer.invoke('get-system-fonts'),
+  onUpdateAvailable: (callback: (info: any) => void) => ipcRenderer.on('update-available', (_event, info) => callback(info)),
+  onUpdateDownloaded: (callback: (info: any) => void) => ipcRenderer.on('update-downloaded', (_event, info) => callback(info)),
+  downloadUpdate: () => ipcRenderer.invoke('download-update'),
+  quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),
 });

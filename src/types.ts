@@ -28,6 +28,10 @@ declare global {
       copyToVault: (filePath: string) => Promise<string>;
       deleteFromVault: (filePath: string) => Promise<{success: boolean, message?: string}>;
       getSystemFonts: () => Promise<string[]>;
+      onUpdateAvailable: (callback: (info: any) => void) => void;
+      onUpdateDownloaded: (callback: (info: any) => void) => void;
+      downloadUpdate: () => Promise<void>;
+      quitAndInstall: () => Promise<void>;
     }
   }
 }

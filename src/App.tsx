@@ -96,6 +96,27 @@ function App() {
     loadDb();
   }, []);
 
+  // Auto Updater Hook
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.electronAPI && window.electronAPI.onUpdateAvailable) {
+      window.electronAPI.onUpdateAvailable((info: any) => {
+        toast('Update Available!', {
+          description: `Version ${info.version} is downloading in the background.`,
+          duration: 10000,
+        });
+      });
+      window.electronAPI.onUpdateDownloaded((info: any) => {
+        toast.success(`Update v${info.version} ready to install!`, {
+          duration: Infinity,
+          action: {
+            label: 'Restart & Install',
+            onClick: () => window.electronAPI.quitAndInstall()
+          }
+        });
+      });
+    }
+  }, []);
+
   useEffect(() => {
     if (typeof window !== 'undefined' && window.electronAPI) {
       // Only serialize custom fonts to the database
