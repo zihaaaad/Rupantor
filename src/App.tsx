@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo, startTransition } from 'react';
 import { Search, Type, UploadCloud, FileDown, X, Grid, List, Wind, Cloud, Code, Layers, Box, Palette, Shapes, Film, Image as ImageIcon } from 'lucide-react';
 import opentype from 'opentype.js';
 import { Toaster, toast } from 'sonner';
@@ -165,7 +165,9 @@ function App() {
   }, [fonts, searchQuery, sortBy, filterBy]);
 
   const switchTab = (tab: string) => {
-    setActiveTab(tab);
+    startTransition(() => {
+      setActiveTab(tab);
+    });
     setSearchQuery('');
     setSelectedIds(new Set());
     setContextMenu(null);

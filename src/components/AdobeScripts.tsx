@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { FileCode, Play, X, UploadCloud } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ScriptObj } from '../types';
@@ -12,6 +12,14 @@ export function AdobeScripts({ scripts, setScripts }: AdobeScriptsProps) {
   const [viewingScript, setViewingScript] = useState<ScriptObj | null>(null);
   const [codeContent, setCodeContent] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setViewingScript(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleRun = async (e: React.MouseEvent, script: ScriptObj) => {
     e.stopPropagation();
@@ -111,6 +119,19 @@ export function AdobeScripts({ scripts, setScripts }: AdobeScriptsProps) {
               <textarea 
                 value={codeContent}
                 onChange={e => setCodeContent(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Tab') {
+                    e.preventDefault();
+                    const target = e.target as HTMLTextAreaElement;
+                    const start = target.selectionStart;
+                    const end = target.selectionEnd;
+                    const newValue = codeContent.substring(0, start) + '  ' + codeContent.substring(end);
+                    setCodeContent(newValue);
+                    setTimeout(() => {
+                      target.selectionStart = target.selectionEnd = start + 2;
+                    }, 0);
+                  }
+                }}
                 spellCheck={false}
                 style={{ 
                   flex: 1, background: '#111', color: '#0f0', fontFamily: 'monospace', 
