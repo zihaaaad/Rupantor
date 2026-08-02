@@ -205,6 +205,21 @@ ipcMain.handle('copy-to-vault', async (event, originalPath) => {
   }
 });
 
+ipcMain.handle('delete-from-vault', async (event, filePath) => {
+  try {
+    const vaultDir = path.join(app.getPath('userData'), 'Vault');
+    // Basic security check to ensure we only delete within the Vault
+    if (filePath.startsWith(vaultDir) && fs.existsSync(filePath)) {
+      await fs.promises.unlink(filePath);
+      return { success: true };
+    }
+    return { success: false, message: 'File not in vault or does not exist' };
+  } catch (e) {
+    console.error('Vault delete error:', e);
+    return { success: false, message: (e as Error).message };
+  }
+});
+
 ipcMain.handle('get-system-fonts', async () => {
   let fontNames: string[] = [];
   try {

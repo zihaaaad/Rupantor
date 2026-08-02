@@ -26,6 +26,7 @@ declare global {
       readFile: (filePath: string) => Promise<string>;
       writeFile: (filePath: string, content: string) => Promise<{success: boolean}>;
       copyToVault: (filePath: string) => Promise<string>;
+      deleteFromVault: (filePath: string) => Promise<{success: boolean, message?: string}>;
       getSystemFonts: () => Promise<string[]>;
     }
   }

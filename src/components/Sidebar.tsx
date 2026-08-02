@@ -11,7 +11,7 @@ interface SidebarProps {
 
 export function Sidebar({ activeTab, switchTab, setIsSettingsOpen }: SidebarProps) {
   
-  const renderNavGroup = (title: string, items: { icon: any, label: string }[]) => (
+  const renderNavGroup = (title: string, items: { icon: any, label: string, comingSoon?: boolean }[]) => (
     <div style={{ marginBottom: '24px' }}>
       <div style={{ 
         fontSize: '0.7rem', 
@@ -27,11 +27,15 @@ export function Sidebar({ activeTab, switchTab, setIsSettingsOpen }: SidebarProp
       {items.map((item, idx) => (
         <div 
           key={idx} 
-          className={`nav-item ${activeTab === item.label ? 'active' : ''}`} 
-          onClick={() => switchTab(item.label)}
+          className={`nav-item ${activeTab === item.label ? 'active' : ''} ${item.comingSoon ? 'disabled' : ''}`} 
+          onClick={() => !item.comingSoon && switchTab(item.label)}
+          style={{ opacity: item.comingSoon ? 0.5 : 1, cursor: item.comingSoon ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
         >
-          {item.icon}
-          <span>{item.label}</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            {item.icon}
+            <span>{item.label}</span>
+          </div>
+          {item.comingSoon && <span style={{ fontSize: '0.6rem', background: 'var(--border)', padding: '2px 6px', borderRadius: '4px', textTransform: 'uppercase', fontWeight: 600, color: 'var(--text-muted)' }}>Soon</span>}
         </div>
       ))}
     </div>
@@ -47,20 +51,20 @@ export function Sidebar({ activeTab, switchTab, setIsSettingsOpen }: SidebarProp
       <nav className="sidebar-nav">
         {renderNavGroup('Overview', [
           { icon: <LayoutDashboard size={18} />, label: 'Dashboard' },
-          { icon: <Layers size={18} />, label: 'Smart Collections' }
+          { icon: <Layers size={18} />, label: 'Smart Collections', comingSoon: true }
         ])}
 
         {renderNavGroup('Asset Library', [
           { icon: <Type size={18} />, label: 'Font Management' },
-          { icon: <Palette size={18} />, label: 'Brand Palettes' },
-          { icon: <Shapes size={18} />, label: 'Vector Library' },
-          { icon: <Film size={18} />, label: 'Motion Assets' }
+          { icon: <Palette size={18} />, label: 'Brand Palettes', comingSoon: true },
+          { icon: <Shapes size={18} />, label: 'Vector Library', comingSoon: true },
+          { icon: <Film size={18} />, label: 'Motion Assets', comingSoon: true }
         ])}
 
         {renderNavGroup('Creative Workflows', [
           { icon: <Code size={18} />, label: 'Adobe JSX Scripts' },
-          { icon: <Box size={18} />, label: 'Extension Builder' },
-          { icon: <ImageIcon size={18} />, label: 'Moodboards' }
+          { icon: <Box size={18} />, label: 'Extension Builder', comingSoon: true },
+          { icon: <ImageIcon size={18} />, label: 'Moodboards', comingSoon: true }
         ])}
       </nav>
 

@@ -136,9 +136,7 @@ function App() {
         setContextMenu(null);
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.size > 0 && !detailFont && !isSettingsOpen) {
-        // Deletion logic handled below, but we can't cleanly access it without dependency.
-        // It's safer to avoid this shortcut running deleteSelected directly inside useEffect
-        // unless deleteSelected is wrapped in useCallback. We'll leave the call here.
+        deleteSelected();
       }
     };
     const handleClick = () => setContextMenu(null);
@@ -184,17 +182,13 @@ function App() {
         if (nameLower.includes('ae') || nameLower.includes('aftereffects')) targetApp = 'After Effects';
         else if (nameLower.includes('ai') || nameLower.includes('illustrator')) targetApp = 'Illustrator';
         
-        let safePath = nativePath;
-        if ((window as any).electronAPI?.copyToVault) {
-          safePath = await (window as any).electronAPI.copyToVault(nativePath);
-        }
-
+        // Return nativePath, Vault copy happens in processAndSetFiles
         resolve({
           type: 'script',
           payload: {
             id: `${file.name}-${Date.now()}`,
             name: file.name,
-            path: safePath,
+            path: nativePath,
             targetApp
           }
         });
@@ -223,11 +217,8 @@ function App() {
           const styleName = getSafeName(font.names.fontSubfamily, 'Regular');
           
           const nativePath = (file as any).path;
-          let safePath = nativePath;
-          if ((window as any).electronAPI?.copyToVault) {
-            safePath = await (window as any).electronAPI.copyToVault(nativePath);
-          }
           
+          // Return nativePath, Vault copy happens in processAndSetFiles
           resolve({
             type: 'font',
             payload: {
@@ -236,7 +227,7 @@ function App() {
               active: true,
               fontFamily: familyName,
               isSystem: false,
-              path: safePath,
+              path: nativePath,
               file: file
             }
           });
@@ -258,8 +249,18 @@ function App() {
       try {
         const res = await processFile(f);
         if (res.type === 'script') {
-          newScripts.push(res.payload);
-          successCount++;
+          // Check for exact duplicate scripts before copying to Vault
+          const isDupScript = scripts.some(existing => existing.name === res.payload.name) ||
+                              newScripts.some(existing => existing.name === res.payload.name);
+          if (isDupScript) {
+            dupCount++;
+          } else {
+            if ((window as any).electronAPI?.copyToVault && res.payload.path) {
+              res.payload.path = await (window as any).electronAPI.copyToVault(res.payload.path);
+            }
+            newScripts.push(res.payload);
+            successCount++;
+          }
         } else {
           const fontPayload = res.payload;
           const isDup = fonts.some(existing => existing.name === fontPayload.name && existing.style === fontPayload.style) ||
@@ -267,6 +268,9 @@ function App() {
           if (isDup) {
             dupCount++;
           } else {
+            if ((window as any).electronAPI?.copyToVault && fontPayload.path) {
+              fontPayload.path = await (window as any).electronAPI.copyToVault(fontPayload.path);
+            }
             const fontUrl = fontPayload.path ? `local://${encodeURI(fontPayload.path.replace(/\\/g, '/'))}` : URL.createObjectURL(fontPayload.file);
             const fontFace = new FontFace(fontPayload.fontFamily, `url("${fontUrl}")`);
             fontFace.load().then(() => document.fonts.add(fontFace)).catch(console.error);
@@ -369,9 +373,12 @@ function App() {
         await window.electronAPI.uninstallFont(f.path, f.fontFamily);
       }
       if (f.fontFaceInstance) document.fonts.delete(f.fontFaceInstance);
+      if (f.path && (window as any).electronAPI?.deleteFromVault) {
+        await (window as any).electronAPI.deleteFromVault(f.path);
+      }
     }
 
-    setFonts(prev => prev.filter(f => !customToDelete.includes(f)));
+    setFonts(prev => prev.filter(f => !customToDelete.some(cd => cd.name === f.name && cd.style === f.style)));
     setSelectedIds(new Set());
     setContextMenu(null);
     toast.success(`Deleted ${customToDelete.length} font(s).`, { id: 'delete' });
@@ -379,23 +386,28 @@ function App() {
 
   const toggleSelectedActive = async () => {
     const toToggle = fonts.filter(f => selectedIds.has(`${f.name}-${f.style}`));
+    const successToggles = new Set<string>();
     
     for (const f of toToggle) {
       if (f.path) {
         if (!f.active) {
           const res = await window.electronAPI.installFont(f.path, f.fontFamily);
-          if (res.success) toast.success(`Installed ${f.name} to OS`);
-          else toast.error(`Failed to install ${f.name}`);
+          if (res.success) {
+            toast.success(`Installed ${f.name} to OS`);
+            successToggles.add(`${f.name}-${f.style}`);
+          } else toast.error(`Failed to install ${f.name}`);
         } else {
           const res = await window.electronAPI.uninstallFont(f.path, f.fontFamily);
-          if (res.success) toast.success(`Uninstalled ${f.name} from OS`);
-          else toast.error(`Failed to uninstall ${f.name}`);
+          if (res.success) {
+            toast.success(`Uninstalled ${f.name} from OS`);
+            successToggles.add(`${f.name}-${f.style}`);
+          } else toast.error(`Failed to uninstall ${f.name}`);
         }
       }
     }
 
     setFonts(prev => prev.map(f => {
-      if (selectedIds.has(`${f.name}-${f.style}`)) return { ...f, active: !f.active };
+      if (successToggles.has(`${f.name}-${f.style}`)) return { ...f, active: !f.active };
       return f;
     }));
     setContextMenu(null);

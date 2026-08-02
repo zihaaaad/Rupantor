@@ -9,7 +9,7 @@ export function getDbPath() {
 export function initDb() {
   const dbPath = getDbPath();
   if (!fs.existsSync(dbPath)) {
-    fs.writeFileSync(dbPath, JSON.stringify({ fonts: [], collections: [] }), 'utf8');
+    fs.writeFileSync(dbPath, JSON.stringify({ fonts: [], collections: [], scripts: [] }), 'utf8');
   }
 }
 
@@ -17,7 +17,7 @@ export function getDbData() {
   try {
     return JSON.parse(fs.readFileSync(getDbPath(), 'utf8'));
   } catch {
-    return { fonts: [], collections: [] };
+    return { fonts: [], collections: [], scripts: [] };
   }
 }
 

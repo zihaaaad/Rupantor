@@ -31,8 +31,12 @@ export function AdobeScripts({ scripts, setScripts }: AdobeScriptsProps) {
     }
   };
 
-  const handleDelete = (e: React.MouseEvent, id: string) => {
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
+    const scriptToDelete = scripts.find(s => s.id === id);
+    if (scriptToDelete) {
+      await (window as any).electronAPI.deleteFromVault(scriptToDelete.path);
+    }
     setScripts(prev => prev.filter(s => s.id !== id));
   };
 
