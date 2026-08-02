@@ -287,14 +287,26 @@ t.on("window-all-closed", () => {
 		console.error("Failed to get system fonts via font-list:", e);
 	}
 	if (process.platform === "win32") try {
-		let t = await new Promise((e) => {
-			l("powershell.exe -NoProfile -NonInteractive -Command \"\n          $hklm = Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts' -ErrorAction SilentlyContinue;\n          $hkcu = Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts' -ErrorAction SilentlyContinue;\n          $names = @();\n          if ($hklm) { $names += $hklm.psobject.properties | Where-Object { $_.Name -notmatch '^(PSChildName|PSDrive|PSParentPath|PSPath|PSProvider)$' } | Select-Object -ExpandProperty Name };\n          if ($hkcu) { $names += $hkcu.psobject.properties | Where-Object { $_.Name -notmatch '^(PSChildName|PSDrive|PSParentPath|PSPath|PSProvider)$' } | Select-Object -ExpandProperty Name };\n          $names | ForEach-Object { $_ -replace '\\s+\\((TrueType|OpenType|All res|Type 1|PostScript|120|8,10,12,14,18,24.*)\\)', '' } | Sort-Object -Unique\n        \"", (t, n) => {
-				e(t || !n ? [] : n.split("\n").map((e) => e.trim()).filter(Boolean));
+		let t = (e) => new Promise((t) => {
+			l(`reg query "${e}"`, (e, n) => {
+				if (e || !n) {
+					t([]);
+					return;
+				}
+				let r = [], i = n.split("\n");
+				for (let e of i) if (e = e.trim(), e.includes("REG_SZ")) {
+					let t = e.split("REG_SZ");
+					if (t.length > 0) {
+						let e = t[0].trim().replace(/\s+\((TrueType|OpenType|All res|Type 1|PostScript|120|8,10,12,14,18,24.*)\)$/i, "");
+						e && r.push(e);
+					}
+				}
+				t(r);
 			});
-		});
-		t.length > 0 && (e = Array.from(/* @__PURE__ */ new Set([...e, ...t])));
+		}), [n, r] = await Promise.all([t("HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts"), t("HKCU\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts")]), i = [...n, ...r];
+		i.length > 0 && (e = Array.from(/* @__PURE__ */ new Set([...e, ...i])));
 	} catch (e) {
-		console.error("Failed to get system fonts via registry fallback:", e);
+		console.error("Failed to get system fonts via reg query:", e);
 	}
 	return e;
 });

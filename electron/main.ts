@@ -214,33 +214,44 @@ ipcMain.handle('get-system-fonts', async () => {
     console.error('Failed to get system fonts via font-list:', e);
   }
 
-  // Windows Fallback: Query both HKLM and HKCU registry keys for installed fonts
+  // Windows: Native Registry Query via reg.exe (extremely fast, completes in <50ms)
   if (process.platform === 'win32') {
     try {
-      const runPowerShell = () => new Promise<string[]>((resolve) => {
-        const psCommand = `powershell.exe -NoProfile -NonInteractive -Command "
-          $hklm = Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts' -ErrorAction SilentlyContinue;
-          $hkcu = Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts' -ErrorAction SilentlyContinue;
-          $names = @();
-          if ($hklm) { $names += $hklm.psobject.properties | Where-Object { $_.Name -notmatch '^(PSChildName|PSDrive|PSParentPath|PSPath|PSProvider)$' } | Select-Object -ExpandProperty Name };
-          if ($hkcu) { $names += $hkcu.psobject.properties | Where-Object { $_.Name -notmatch '^(PSChildName|PSDrive|PSParentPath|PSPath|PSProvider)$' } | Select-Object -ExpandProperty Name };
-          $names | ForEach-Object { $_ -replace '\\s+\\((TrueType|OpenType|All res|Type 1|PostScript|120|8,10,12,14,18,24.*)\\)', '' } | Sort-Object -Unique
-        "`;
-        exec(psCommand, (error, stdout) => {
+      const runRegQuery = (keyPath: string) => new Promise<string[]>((resolve) => {
+        exec(`reg query "${keyPath}"`, (error, stdout) => {
           if (error || !stdout) {
             resolve([]);
-          } else {
-            const list = stdout.split('\n').map(line => line.trim()).filter(Boolean);
-            resolve(list);
+            return;
           }
+          const list: string[] = [];
+          const lines = stdout.split('\n');
+          for (let line of lines) {
+            line = line.trim();
+            if (line.includes('REG_SZ')) {
+              const parts = line.split('REG_SZ');
+              if (parts.length > 0) {
+                const fontName = parts[0].trim().replace(/\s+\((TrueType|OpenType|All res|Type 1|PostScript|120|8,10,12,14,18,24.*)\)$/i, '');
+                if (fontName) {
+                  list.push(fontName);
+                }
+              }
+            }
+          }
+          resolve(list);
         });
       });
-      const regFonts = await runPowerShell();
+
+      const [hklmFonts, hkcuFonts] = await Promise.all([
+        runRegQuery('HKLM\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts'),
+        runRegQuery('HKCU\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts')
+      ]);
+
+      const regFonts = [...hklmFonts, ...hkcuFonts];
       if (regFonts.length > 0) {
         fontNames = Array.from(new Set([...fontNames, ...regFonts]));
       }
     } catch (err) {
-      console.error('Failed to get system fonts via registry fallback:', err);
+      console.error('Failed to get system fonts via reg query:', err);
     }
   }
 
