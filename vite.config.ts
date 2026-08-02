@@ -12,7 +12,10 @@ export default defineConfig({
         vite: {
           build: {
             rollupOptions: {
-              external: ['font-list']
+              external: ['font-list', 'electron']
+            },
+            rolldownOptions: {
+              external: ['font-list', 'electron']
             }
           }
         }

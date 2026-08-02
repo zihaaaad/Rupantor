@@ -2,7 +2,7 @@ import { BrowserWindow as e, app as t, ipcMain as n, net as r, protocol as i } f
 import a from "path";
 import { fileURLToPath as o } from "url";
 import s from "fs";
-import { createRequire as c } from "module";
+import c from "font-list";
 import { exec as l, execFile as u } from "child_process";
 import d from "os";
 //#region electron/db.ts
@@ -35,14 +35,8 @@ async function h(e, t) {
 	}
 }
 //#endregion
-//#region node_modules/font-list/index.mjs
-var { getFonts: g, getFonts2: _ } = c(import.meta.url)("./libs/core"), v = {
-	getFonts: g,
-	getFonts2: _
-};
-//#endregion
 //#region electron/installFont.ts
-async function y(e, t) {
+async function g(e, t) {
 	return new Promise((n) => {
 		let r = a.basename(e), i = process.platform;
 		if (i === "darwin") {
@@ -90,7 +84,7 @@ $WM_FONTCHANGE = 0x001D
 		} else console.warn("Linux font installation is not implemented."), n(!1);
 	});
 }
-async function b(e, t) {
+async function _(e, t) {
 	return new Promise((n) => {
 		let r = a.basename(e), i = process.platform;
 		if (i === "darwin") {
@@ -141,11 +135,11 @@ $WM_FONTCHANGE = 0x001D
 }
 //#endregion
 //#region electron/main.ts
-var x = a.dirname(o(import.meta.url));
-process.env.APP_ROOT = a.join(x, "..");
-var S = process.env.VITE_DEV_SERVER_URL, C = a.join(process.env.APP_ROOT, "dist-electron"), w = a.join(process.env.APP_ROOT, "dist");
-process.env.VITE_PUBLIC = S ? a.join(process.env.APP_ROOT, "public") : w;
-var T;
+var v = a.dirname(o(import.meta.url));
+process.env.APP_ROOT = a.join(v, "..");
+var y = process.env.VITE_DEV_SERVER_URL, b = a.join(process.env.APP_ROOT, "dist-electron"), x = a.join(process.env.APP_ROOT, "dist");
+process.env.VITE_PUBLIC = y ? a.join(process.env.APP_ROOT, "public") : x;
+var S;
 i.registerSchemesAsPrivileged([{
 	scheme: "local",
 	privileges: {
@@ -155,8 +149,8 @@ i.registerSchemesAsPrivileged([{
 		standard: !0
 	}
 }]);
-function E() {
-	T = new e({
+function C() {
+	S = new e({
 		width: 1200,
 		height: 800,
 		icon: a.join(process.env.VITE_PUBLIC, "icon.png"),
@@ -166,32 +160,32 @@ function E() {
 			symbolColor: "#fff"
 		},
 		webPreferences: {
-			preload: a.join(x, "preload.mjs"),
+			preload: a.join(v, "preload.mjs"),
 			nodeIntegration: !1,
 			contextIsolation: !0,
 			webSecurity: !0
 		}
-	}), S ? T.loadURL(S) : T.loadFile(a.join(w, "index.html"));
+	}), y ? S.loadURL(y) : S.loadFile(a.join(x, "index.html"));
 }
 t.on("window-all-closed", () => {
-	process.platform !== "darwin" && (t.quit(), T = null);
+	process.platform !== "darwin" && (t.quit(), S = null);
 }), t.on("activate", () => {
-	e.getAllWindows().length === 0 && E();
+	e.getAllWindows().length === 0 && C();
 }), t.whenReady().then(() => {
 	p(), i.handle("local", (e) => {
 		let t = e.url.replace("local://", "");
 		return r.fetch("file://" + decodeURIComponent(t));
-	}), E();
+	}), C();
 }), n.handle("get-db-data", () => m()), n.on("save-db-data", (e, t, n) => h(t, n)), n.handle("install-font", async (e, t, n) => {
 	console.log("Requested to install font:", n, t);
-	let r = await y(t, n);
+	let r = await g(t, n);
 	return {
 		success: r,
 		message: r ? "Installed natively!" : "Failed to install"
 	};
 }), n.handle("uninstall-font", async (e, t, n) => {
 	console.log("Requested to uninstall font:", n, t);
-	let r = await b(t, n);
+	let r = await _(t, n);
 	return {
 		success: r,
 		message: r ? "Uninstalled natively!" : "Failed to uninstall"
@@ -282,7 +276,7 @@ t.on("window-all-closed", () => {
 }), n.handle("get-system-fonts", async () => {
 	let e = [];
 	try {
-		e = (await v.getFonts()).map((e) => e.replace(/^"|"$/g, ""));
+		e = (await c.getFonts()).map((e) => e.replace(/^"|"$/g, ""));
 	} catch (e) {
 		console.error("Failed to get system fonts via font-list:", e);
 	}
@@ -311,4 +305,4 @@ t.on("window-all-closed", () => {
 	return e;
 });
 //#endregion
-export { C as MAIN_DIST, w as RENDERER_DIST, S as VITE_DEV_SERVER_URL };
+export { b as MAIN_DIST, x as RENDERER_DIST, y as VITE_DEV_SERVER_URL };
