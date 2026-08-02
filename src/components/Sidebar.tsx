@@ -43,9 +43,9 @@ export function Sidebar({ activeTab, switchTab, setIsSettingsOpen }: SidebarProp
 
   return (
     <aside className="sidebar" style={{ overflowY: 'auto' }}>
-      <div className="sidebar-header" style={{ paddingBottom: '32px' }}>
-        <img src="/logo.jpg" alt="Rupantor Logo" style={{ width: '28px', height: '28px', borderRadius: '6px', objectFit: 'cover' }} />
-        <span>Rupantor</span>
+      <div className="brand" style={{ paddingBottom: '32px' }}>
+        <div className="logo-box">R</div>
+        <h2>Rupantor</h2>
       </div>
       
       <nav className="sidebar-nav">
