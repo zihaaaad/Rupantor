@@ -206,13 +206,44 @@ ipcMain.handle('copy-to-vault', async (event, originalPath) => {
 });
 
 ipcMain.handle('get-system-fonts', async () => {
+  let fontNames: string[] = [];
   try {
     const fonts = await fontList.getFonts();
-    // font-list returns names wrapped in double quotes if they contain spaces. Let's strip them safely.
-    return fonts.map((f: string) => f.replace(/^"|"$/g, ''));
+    fontNames = fonts.map((f: string) => f.replace(/^"|"$/g, ''));
   } catch (e) {
-    console.error('Failed to get system fonts:', e);
-    return [];
+    console.error('Failed to get system fonts via font-list:', e);
   }
+
+  // Windows Fallback: Query both HKLM and HKCU registry keys for installed fonts
+  if (process.platform === 'win32') {
+    try {
+      const runPowerShell = () => new Promise<string[]>((resolve) => {
+        const psCommand = `powershell.exe -NoProfile -NonInteractive -Command "
+          $hklm = Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts' -ErrorAction SilentlyContinue;
+          $hkcu = Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts' -ErrorAction SilentlyContinue;
+          $names = @();
+          if ($hklm) { $names += $hklm.psobject.properties | Where-Object { $_.Name -notmatch '^(PSChildName|PSDrive|PSParentPath|PSPath|PSProvider)$' } | Select-Object -ExpandProperty Name };
+          if ($hkcu) { $names += $hkcu.psobject.properties | Where-Object { $_.Name -notmatch '^(PSChildName|PSDrive|PSParentPath|PSPath|PSProvider)$' } | Select-Object -ExpandProperty Name };
+          $names | ForEach-Object { $_ -replace '\\s+\\((TrueType|OpenType|All res|Type 1|PostScript|120|8,10,12,14,18,24.*)\\)', '' } | Sort-Object -Unique
+        "`;
+        exec(psCommand, (error, stdout) => {
+          if (error || !stdout) {
+            resolve([]);
+          } else {
+            const list = stdout.split('\n').map(line => line.trim()).filter(Boolean);
+            resolve(list);
+          }
+        });
+      });
+      const regFonts = await runPowerShell();
+      if (regFonts.length > 0) {
+        fontNames = Array.from(new Set([...fontNames, ...regFonts]));
+      }
+    } catch (err) {
+      console.error('Failed to get system fonts via registry fallback:', err);
+    }
+  }
+
+  return fontNames;
 });
 // Note: Window Controls are natively handled by Electron's titleBarOverlay (WCO).

@@ -52,13 +52,15 @@ function App() {
     async function loadDb() {
       if (typeof window !== 'undefined' && window.electronAPI) {
         const db = await window.electronAPI.getDbData();
-        let allFonts = db.fonts || [];
+        // Load custom fonts from DB, discarding any system fonts that were incorrectly serialized in previous runs
+        const customFonts = (db.fonts || []).filter((f: FontObj) => !f.isSystem);
 
+        let sysFonts: FontObj[] = [];
         // Automatically fetch OS System Fonts silently
         if (window.electronAPI.getSystemFonts) {
           try {
             const sysFontNames = await window.electronAPI.getSystemFonts();
-            const sysFonts: FontObj[] = sysFontNames.map(name => ({
+            sysFonts = sysFontNames.map(name => ({
               name: name,
               style: 'Regular',
               active: true,
@@ -66,29 +68,26 @@ function App() {
               isSystem: true,
               path: '' // Native OS font, no path needed for browser to render
             }));
-            
-            // Deduplicate: Only add system fonts that aren't already in db.fonts (if user manually installed one)
-            const existingNames = new Set(allFonts.map(f => f.name));
-            const newSysFonts = sysFonts.filter(f => !existingNames.has(f.name));
-            allFonts = [...allFonts, ...newSysFonts];
           } catch (e) {
             console.error('Failed to load system fonts:', e);
           }
         }
 
-        if (allFonts.length > 0) {
-          allFonts.forEach(async (f: FontObj) => {
-            if (f.path && !f.isSystem) {
-              try {
-                const fontFace = new FontFace(f.fontFamily, `url("local://${encodeURI(f.path.replace(/\\/g, '/'))}")`);
-                await fontFace.load();
-                document.fonts.add(fontFace);
-                f.fontFaceInstance = fontFace;
-              } catch (err) { console.error("Failed to load font from path:", f.path, err); }
-            }
-          });
-          setFonts(allFonts);
-        }
+        const allFonts = [...customFonts, ...sysFonts];
+
+        allFonts.forEach(async (f: FontObj) => {
+          if (f.path && !f.isSystem) {
+            try {
+              const fontFace = new FontFace(f.fontFamily, `url("local://${encodeURI(f.path.replace(/\\/g, '/'))}")`);
+              await fontFace.load();
+              document.fonts.add(fontFace);
+              f.fontFaceInstance = fontFace;
+            } catch (err) { console.error("Failed to load font from path:", f.path, err); }
+          }
+        });
+        
+        setFonts(allFonts);
+
         if (db.scripts) {
           setScripts(db.scripts);
         }
@@ -99,7 +98,9 @@ function App() {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.electronAPI) {
-      const safeFonts = fonts.map(f => {
+      // Only serialize custom fonts to the database
+      const customFonts = fonts.filter(f => !f.isSystem);
+      const safeFonts = customFonts.map(f => {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { fontFaceInstance: _ffi, ...rest } = f;
         return rest;

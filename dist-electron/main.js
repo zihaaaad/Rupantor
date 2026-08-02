@@ -2,22 +2,23 @@ import { BrowserWindow as e, app as t, ipcMain as n, net as r, protocol as i } f
 import a from "path";
 import { fileURLToPath as o } from "url";
 import s from "fs";
-import { exec as c, execFile as l } from "child_process";
-import u from "os";
+import { createRequire as c } from "module";
+import { exec as l, execFile as u } from "child_process";
+import d from "os";
 //#region electron/db.ts
-function d() {
+function f() {
 	return a.join(t.getPath("userData"), "rupantor_db.json");
 }
-function f() {
-	let e = d();
+function p() {
+	let e = f();
 	s.existsSync(e) || s.writeFileSync(e, JSON.stringify({
 		fonts: [],
 		collections: []
 	}), "utf8");
 }
-function p() {
+function m() {
 	try {
-		return JSON.parse(s.readFileSync(d(), "utf8"));
+		return JSON.parse(s.readFileSync(f(), "utf8"));
 	} catch {
 		return {
 			fonts: [],
@@ -25,37 +26,43 @@ function p() {
 		};
 	}
 }
-async function m(e, t) {
+async function h(e, t) {
 	try {
-		let n = p();
-		n[e] = t, await s.promises.writeFile(d(), JSON.stringify(n, null, 2), "utf8");
+		let n = m();
+		n[e] = t, await s.promises.writeFile(f(), JSON.stringify(n, null, 2), "utf8");
 	} catch (e) {
 		console.error("Failed to save DB data:", e);
 	}
 }
 //#endregion
+//#region node_modules/font-list/index.mjs
+var { getFonts: g, getFonts2: _ } = c(import.meta.url)("./libs/core"), v = {
+	getFonts: g,
+	getFonts2: _
+};
+//#endregion
 //#region electron/installFont.ts
-async function h(e, t) {
+async function y(e, t) {
 	return new Promise((n) => {
 		let r = a.basename(e), i = process.platform;
 		if (i === "darwin") {
-			let t = a.join(u.homedir(), "Library", "Fonts"), i = a.join(t, r);
+			let t = a.join(d.homedir(), "Library", "Fonts"), i = a.join(t, r);
 			s.existsSync(t) || s.mkdirSync(t, { recursive: !0 });
 			try {
-				return e !== i && s.copyFileSync(e, i), n(!0);
+				return e !== i && !s.existsSync(i) && s.copyFileSync(e, i), n(!0);
 			} catch (e) {
 				return console.error("Mac Font Copy failed:", e), n(!1);
 			}
 		} else if (i === "win32") {
-			let i = `${t} ${a.extname(r).toLowerCase() === ".otf" ? "(OpenType)" : "(TrueType)"}`, o = a.join(u.homedir(), "AppData", "Local", "Microsoft", "Windows", "Fonts"), l = a.join(o, r);
+			let i = `${t} ${a.extname(r).toLowerCase() === ".otf" ? "(OpenType)" : "(TrueType)"}`, o = a.join(d.homedir(), "AppData", "Local", "Microsoft", "Windows", "Fonts"), c = a.join(o, r);
 			s.existsSync(o) || s.mkdirSync(o, { recursive: !0 });
 			try {
-				e !== l && s.copyFileSync(e, l);
+				e !== c && !s.existsSync(c) && s.copyFileSync(e, c);
 			} catch (e) {
 				return console.error("Windows Copy failed:", e), n(!1);
 			}
-			let d = Buffer.from(i).toString("base64"), f = Buffer.from(r).toString("base64"), p = a.join(u.tmpdir(), "rupantor_install_font.ps1"), m = `
-$registryName = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${d}'))
+			let u = Buffer.from(i).toString("base64"), f = Buffer.from(r).toString("base64"), p = a.join(d.tmpdir(), "rupantor_install_font.ps1"), m = `
+$registryName = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${u}'))
 $fileName = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${f}'))
 $registryPath = "HKCU:\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts"
 New-ItemProperty -Path $registryPath -Name $registryName -Value $fileName -PropertyType String -Force
@@ -77,33 +84,37 @@ $WM_FONTCHANGE = 0x001D
 			} catch {
 				return n(!1);
 			}
-			c(`powershell.exe -ExecutionPolicy Bypass -NoProfile -File "${p}"`, (e) => {
+			l(`powershell.exe -ExecutionPolicy Bypass -NoProfile -File "${p}"`, (e) => {
 				e ? (console.error("PowerShell failed:", e), n(!1)) : n(!0);
 			});
 		} else console.warn("Linux font installation is not implemented."), n(!1);
 	});
 }
-async function g(e, t) {
+async function b(e, t) {
 	return new Promise((n) => {
 		let r = a.basename(e), i = process.platform;
 		if (i === "darwin") {
-			let e = a.join(u.homedir(), "Library", "Fonts"), t = a.join(e, r);
+			let e = a.join(d.homedir(), "Library", "Fonts"), t = a.join(e, r);
 			try {
 				return s.existsSync(t) && s.unlinkSync(t), n(!0);
 			} catch (e) {
 				return console.error("Mac Font Uninstallation failed:", e), n(!1);
 			}
 		} else if (i === "win32") {
-			let e = `${t} ${a.extname(r).toLowerCase() === ".otf" ? "(OpenType)" : "(TrueType)"}`, i = a.join(u.homedir(), "AppData", "Local", "Microsoft", "Windows", "Fonts"), o = a.join(i, r);
+			let e = `${t} ${a.extname(r).toLowerCase() === ".otf" ? "(OpenType)" : "(TrueType)"}`, i = a.join(d.homedir(), "AppData", "Local", "Microsoft", "Windows", "Fonts"), o = a.join(i, r);
 			try {
 				s.existsSync(o) && s.unlinkSync(o);
 			} catch (e) {
 				console.error("Windows font deletion failed:", e);
 			}
-			let l = Buffer.from(e).toString("base64"), d = a.join(u.tmpdir(), "rupantor_uninstall_font.ps1"), f = `
-$registryName = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${l}'))
+			let c = Buffer.from(e).toString("base64"), u = a.join(d.tmpdir(), "rupantor_uninstall_font.ps1"), f = `
+$registryName = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${c}'))
 $registryPath = "HKCU:\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts"
-Remove-ItemProperty -Path $registryPath -Name $registryName -ErrorAction SilentlyContinue
+$item = Get-ItemProperty -Path $registryPath -Name $registryName -ErrorAction SilentlyContinue
+if ($item) {
+    # File might be locked, but we remove the registry key so it unloads on next reboot at least.
+    Remove-ItemProperty -Path $registryPath -Name $registryName -ErrorAction SilentlyContinue
+}
 
 Add-Type -TypeDefinition @"
 using System;
@@ -118,11 +129,11 @@ $WM_FONTCHANGE = 0x001D
 [FontInstaller]::PostMessage($HWND_BROADCAST, $WM_FONTCHANGE, [IntPtr]::Zero, [IntPtr]::Zero)
 `;
 			try {
-				s.writeFileSync(d, f, "utf8");
+				s.writeFileSync(u, f, "utf8");
 			} catch {
 				return n(!1);
 			}
-			c(`powershell.exe -ExecutionPolicy Bypass -NoProfile -File "${d}"`, (e) => {
+			l(`powershell.exe -ExecutionPolicy Bypass -NoProfile -File "${u}"`, (e) => {
 				e ? (console.error("PowerShell uninstallation failed:", e), n(!1)) : n(!0);
 			});
 		} else n(!1);
@@ -130,11 +141,11 @@ $WM_FONTCHANGE = 0x001D
 }
 //#endregion
 //#region electron/main.ts
-var _ = a.dirname(o(import.meta.url));
-process.env.APP_ROOT = a.join(_, "..");
-var v = process.env.VITE_DEV_SERVER_URL, y = a.join(process.env.APP_ROOT, "dist-electron"), b = a.join(process.env.APP_ROOT, "dist");
-process.env.VITE_PUBLIC = v ? a.join(process.env.APP_ROOT, "public") : b;
-var x;
+var x = a.dirname(o(import.meta.url));
+process.env.APP_ROOT = a.join(x, "..");
+var S = process.env.VITE_DEV_SERVER_URL, C = a.join(process.env.APP_ROOT, "dist-electron"), w = a.join(process.env.APP_ROOT, "dist");
+process.env.VITE_PUBLIC = S ? a.join(process.env.APP_ROOT, "public") : w;
+var T;
 i.registerSchemesAsPrivileged([{
 	scheme: "local",
 	privileges: {
@@ -144,43 +155,43 @@ i.registerSchemesAsPrivileged([{
 		standard: !0
 	}
 }]);
-function S() {
-	x = new e({
+function E() {
+	T = new e({
 		width: 1200,
 		height: 800,
+		icon: a.join(process.env.VITE_PUBLIC, "icon.png"),
 		titleBarStyle: "hidden",
 		titleBarOverlay: {
 			color: "#050505",
 			symbolColor: "#fff"
 		},
-		icon: a.join(process.env.VITE_PUBLIC, "icon.ico"),
 		webPreferences: {
-			preload: a.join(_, "preload.mjs"),
+			preload: a.join(x, "preload.mjs"),
 			nodeIntegration: !1,
 			contextIsolation: !0,
 			webSecurity: !0
 		}
-	}), v ? x.loadURL(v) : x.loadFile(a.join(b, "index.html"));
+	}), S ? T.loadURL(S) : T.loadFile(a.join(w, "index.html"));
 }
 t.on("window-all-closed", () => {
-	process.platform !== "darwin" && (t.quit(), x = null);
+	process.platform !== "darwin" && (t.quit(), T = null);
 }), t.on("activate", () => {
-	e.getAllWindows().length === 0 && S();
+	e.getAllWindows().length === 0 && E();
 }), t.whenReady().then(() => {
-	f(), i.handle("local", (e) => {
+	p(), i.handle("local", (e) => {
 		let t = e.url.replace("local://", "");
 		return r.fetch("file://" + decodeURIComponent(t));
-	}), S();
-}), n.handle("get-db-data", () => p()), n.on("save-db-data", (e, t, n) => m(t, n)), n.handle("install-font", async (e, t, n) => {
+	}), E();
+}), n.handle("get-db-data", () => m()), n.on("save-db-data", (e, t, n) => h(t, n)), n.handle("install-font", async (e, t, n) => {
 	console.log("Requested to install font:", n, t);
-	let r = await h(t, n);
+	let r = await y(t, n);
 	return {
 		success: r,
 		message: r ? "Installed natively!" : "Failed to install"
 	};
 }), n.handle("uninstall-font", async (e, t, n) => {
 	console.log("Requested to uninstall font:", n, t);
-	let r = await g(t, n);
+	let r = await b(t, n);
 	return {
 		success: r,
 		message: r ? "Uninstalled natively!" : "Failed to uninstall"
@@ -188,13 +199,12 @@ t.on("window-all-closed", () => {
 }), n.handle("execute-script", async (e, t, n) => new Promise((e) => {
 	let r = process.platform;
 	if (r === "darwin") {
-		if (n !== "Photoshop") return e({
-			success: !1,
-			message: `AppleScript for ${n} not implemented`
-		});
-		l("osascript", [
+		let r = "com.adobe.Photoshop", i = "do javascript";
+		n === "Illustrator" ? r = "com.adobe.illustrator" : n === "After Effects" && (r = "com.adobe.AfterEffects", i = "DoScriptFile"), u("osascript", [
 			"-e",
-			"on run argv\n        tell application id \"com.adobe.Photoshop\" to do javascript (POSIX file (item 1 of argv))\n      end run",
+			`on run argv
+        tell application id "${r}" to ${i} (POSIX file (item 1 of argv))
+      end run`,
 			"--",
 			t
 		], (t) => {
@@ -207,11 +217,12 @@ t.on("window-all-closed", () => {
 			});
 		});
 	} else if (r === "win32") {
-		if (n !== "Photoshop") return e({
+		if (n === "After Effects") return e({
 			success: !1,
-			message: `COM execution for ${n} not implemented`
+			message: "Windows execution for After Effects currently unsupported"
 		});
-		l("powershell.exe", [
+		let r = "Photoshop.Application";
+		n === "Illustrator" && (r = "Illustrator.Application"), u("powershell.exe", [
 			"-NoProfile",
 			"-Command",
 			`
@@ -221,11 +232,17 @@ t.on("window-all-closed", () => {
           throw "Script file does not exist at path: $scriptPath"
         }
         try {
-          $app = [System.Runtime.InteropServices.Marshal]::GetActiveObject("Photoshop.Application")
+          $app = [System.Runtime.InteropServices.Marshal]::GetActiveObject("${r}")
         } catch {
-          $app = New-Object -ComObject Photoshop.Application
+          $app = New-Object -ComObject ${r}
         }
-        $app.DoJavaScriptFile($scriptPath)
+        
+        if ("${n}" -eq "Illustrator") {
+            $app.DoJavaScriptFile($scriptPath)
+        } else {
+            $app.DoJavaScriptFile($scriptPath)
+        }
+        
         [System.Runtime.InteropServices.Marshal]::ReleaseComObject($app) | Out-Null
       `
 		], (t) => {
@@ -247,6 +264,39 @@ t.on("window-all-closed", () => {
 	} catch (e) {
 		return console.error("File read error:", e), "Error reading file.";
 	}
+}), n.handle("write-file", async (e, t, n) => {
+	try {
+		return await s.promises.writeFile(t, n, "utf8"), { success: !0 };
+	} catch (e) {
+		return console.error("File write error:", e), { success: !1 };
+	}
+}), n.handle("copy-to-vault", async (e, n) => {
+	try {
+		let e = a.join(t.getPath("userData"), "Vault");
+		s.existsSync(e) || s.mkdirSync(e, { recursive: !0 });
+		let r = a.basename(n), i = Date.now() + "_" + r, o = a.join(e, i);
+		return await s.promises.copyFile(n, o), o;
+	} catch (e) {
+		return console.error("Vault copy error:", e), n;
+	}
+}), n.handle("get-system-fonts", async () => {
+	let e = [];
+	try {
+		e = (await v.getFonts()).map((e) => e.replace(/^"|"$/g, ""));
+	} catch (e) {
+		console.error("Failed to get system fonts via font-list:", e);
+	}
+	if (process.platform === "win32") try {
+		let t = await new Promise((e) => {
+			l("powershell.exe -NoProfile -NonInteractive -Command \"\n          $hklm = Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts' -ErrorAction SilentlyContinue;\n          $hkcu = Get-ItemProperty -Path 'HKCU:\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts' -ErrorAction SilentlyContinue;\n          $names = @();\n          if ($hklm) { $names += $hklm.psobject.properties | Where-Object { $_.Name -notmatch '^(PSChildName|PSDrive|PSParentPath|PSPath|PSProvider)$' } | Select-Object -ExpandProperty Name };\n          if ($hkcu) { $names += $hkcu.psobject.properties | Where-Object { $_.Name -notmatch '^(PSChildName|PSDrive|PSParentPath|PSPath|PSProvider)$' } | Select-Object -ExpandProperty Name };\n          $names | ForEach-Object { $_ -replace '\\s+\\((TrueType|OpenType|All res|Type 1|PostScript|120|8,10,12,14,18,24.*)\\)', '' } | Sort-Object -Unique\n        \"", (t, n) => {
+				e(t || !n ? [] : n.split("\n").map((e) => e.trim()).filter(Boolean));
+			});
+		});
+		t.length > 0 && (e = Array.from(/* @__PURE__ */ new Set([...e, ...t])));
+	} catch (e) {
+		console.error("Failed to get system fonts via registry fallback:", e);
+	}
+	return e;
 });
 //#endregion
-export { y as MAIN_DIST, b as RENDERER_DIST, v as VITE_DEV_SERVER_URL };
+export { C as MAIN_DIST, w as RENDERER_DIST, S as VITE_DEV_SERVER_URL };
