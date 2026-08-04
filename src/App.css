@@ -149,6 +149,14 @@ body {
 .filter-select:hover {
   border-color: var(--border-hover);
 }
+/* The <select> popup list renders outside the app's dark background via the
+   OS/browser, so it defaults to a light system background — combined with
+   the light text color inherited from .filter-select, that's invisible
+   white-on-white text. Options need an explicit opaque dark background. */
+.filter-select option {
+  background: var(--bg-sidebar);
+  color: var(--text-main);
+}
 
 /* --- PREMIUM INPUT FIELDS --- */
 .search-input {
