@@ -15,10 +15,12 @@ export interface ScriptObj {
   targetApp: 'Photoshop' | 'After Effects' | 'Illustrator';
 }
 
+export type LicensePlan = 'monthly' | 'yearly' | 'lifetime';
+
 export interface LicensePayload {
   name: string;
   email: string;
-  plan: 'yearly' | 'lifetime';
+  plan: LicensePlan;
   issuedAt: number;
   expiresAt: number | null;
 }

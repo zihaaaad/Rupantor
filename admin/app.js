@@ -7,7 +7,6 @@ import {
   getFirestore, collection, doc, getDocs, setDoc, updateDoc,
   query, orderBy
 } from "https://www.gstatic.com/firebasejs/12.17.0/firebase-firestore.js";
-
 // Same project as electron/firebaseLicense.ts — these are public/client-safe
 // identifiers. Real security comes from firestore.rules + who can sign in.
 const FIREBASE_CONFIG = {
@@ -24,6 +23,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 const $ = (sel) => document.querySelector(sel);
+const PLAN_LABELS = { monthly: 'Monthly', yearly: 'Yearly', lifetime: 'Lifetime' };
 
 // ---------- Auth ----------
 
@@ -105,7 +105,7 @@ function renderTable(licenses) {
           <div class="cell-primary">${escapeHtml(l.name || '')}</div>
           <div class="cell-secondary">${escapeHtml(l.email || '')}</div>
         </td>
-        <td>${l.plan === 'lifetime' ? 'Lifetime' : 'Yearly'}</td>
+        <td>${PLAN_LABELS[l.plan] || l.plan || 'Unknown'}</td>
         <td><span class="status-badge status-${l.status || 'unknown'}">${l.status || 'unknown'}</span></td>
         <td>${devices.length} / ${l.deviceLimit ?? '—'}</td>
         <td>${fmtDate(l.expiresAt)}</td>
@@ -173,7 +173,17 @@ $('#new-license-form').addEventListener('submit', async (e) => {
   const paymentMethod = $('#nl-payment-method').value;
 
   const issuedAt = Date.now();
-  const expiresAt = plan === 'yearly' ? issuedAt + 365 * 24 * 60 * 60 * 1000 : null;
+  // Explicit per-plan mapping rather than a plan === 'yearly' ? ... : null
+  // ternary — that pattern silently treats any *other* plan (including a
+  // future new one) as lifetime/never-expiring, which is exactly backwards.
+  const PLAN_DURATIONS_MS = {
+    monthly: 30 * 24 * 60 * 60 * 1000,
+    yearly: 365 * 24 * 60 * 60 * 1000,
+    lifetime: null,
+  };
+  const expiresAt = plan in PLAN_DURATIONS_MS && PLAN_DURATIONS_MS[plan] !== null
+    ? issuedAt + PLAN_DURATIONS_MS[plan]
+    : null;
 
   const newDocRef = doc(collection(db, 'licenses'));
   const licenseData = {

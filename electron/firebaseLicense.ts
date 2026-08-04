@@ -29,7 +29,7 @@ function getDb(): Firestore {
 export interface RemoteLicenseDoc {
   email: string;
   name: string;
-  plan: 'yearly' | 'lifetime';
+  plan: 'monthly' | 'yearly' | 'lifetime';
   status: 'active' | 'revoked' | 'refunded';
   expiresAt: number | null; // ms epoch, null = lifetime
   deviceLimit: number;

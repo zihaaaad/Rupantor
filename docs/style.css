@@ -385,6 +385,110 @@ main {
     font-size: 0.95rem;
 }
 
+/* Pricing */
+.pricing {
+    margin-top: 100px;
+}
+.pricing-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 24px;
+    margin-bottom: 40px;
+}
+.pricing-card {
+    padding: 32px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+.pricing-card.featured {
+    border-color: rgba(59, 130, 246, 0.4);
+    background: rgba(59, 130, 246, 0.06);
+}
+.pricing-badge {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(135deg, #2563eb, #4f46e5);
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 14px;
+    border-radius: 20px;
+}
+.pricing-card h3 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.25rem;
+    margin-bottom: 12px;
+}
+.price {
+    font-family: 'Outfit', sans-serif;
+    font-size: 2.25rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+.price-period {
+    font-size: 0.95rem;
+    font-weight: 400;
+    color: var(--text-muted);
+    margin-left: 4px;
+}
+.pricing-desc {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 24px;
+}
+.pricing-features {
+    list-style: none;
+    margin-bottom: 32px;
+    flex: 1;
+}
+.pricing-features li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    color: var(--text-main);
+    padding: 8px 0;
+}
+.pricing-features li i {
+    width: 16px;
+    height: 16px;
+    color: var(--secondary);
+    flex-shrink: 0;
+}
+.pricing-cta {
+    justify-content: center;
+    width: 100%;
+}
+.payment-panel {
+    padding: 32px;
+    max-width: 560px;
+    margin: 0 auto;
+}
+.payment-panel h3 {
+    font-family: 'Outfit', sans-serif;
+    font-size: 1.15rem;
+    margin-bottom: 16px;
+    text-align: center;
+}
+.payment-steps {
+    list-style: decimal;
+    padding-left: 20px;
+    color: var(--text-muted);
+    font-size: 0.95rem;
+}
+.payment-steps li {
+    margin-bottom: 10px;
+}
+.payment-steps strong {
+    color: var(--text-main);
+}
+.payment-number {
+    color: #60a5fa;
+}
+
 /* Footer */
 footer {
     border-top: 1px solid var(--border-color);
