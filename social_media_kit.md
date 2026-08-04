@@ -1,6 +1,6 @@
-# 🚀 Rupantor v1.0.0 Social Media Kit
+# 🚀 Rupantor Social Media Kit
 
-Welcome to the official launch promotion kit for **Rupantor v1.0.0**! Since the automated image generation service is currently offline due to model capacity limits on the server, we have designed a complete promotional kit containing copy, visual structure suggestions, and exact prompts to help you create stunning graphics in any design software or AI tool.
+Welcome to the official launch promotion kit for **Rupantor**! Since the automated image generation service is currently offline due to model capacity limits on the server, we have designed a complete promotional kit containing copy, visual structure suggestions, and exact prompts to help you create stunning graphics in any design software or AI tool.
 
 ---
 
@@ -10,19 +10,19 @@ Welcome to the official launch promotion kit for **Rupantor v1.0.0**! Since the 
 > **Target Audience:** Creative Directors, Designers, Developers, and Digital Asset Managers.
 
 **Headline:**
-Meet **Rupantor v1.0.0** — The ultra-fast, native desktop asset and font management layer built for modern design workflows. 🚀
+Meet **Rupantor** — The ultra-fast, native desktop asset and font management layer built for modern design workflows. 🚀
 
 **Body:**
 Creative professionals waste hours managing assets and manual font installations. Rupantor changes that. By bypassing standard sandbox limitations, it gives you direct control over your system and Adobe creative suite with lightning-fast speeds.
 
 ⚡ **Why Rupantor?**
-* **Instant Native Font Installations:** Directly interfaces with Windows Win32 API and macOS CoreText. Install fonts system-wide in under 5ms (Mac) or 120ms (Windows) without restarting apps.
-* **Adobe Automation Bridge:** Push over 10,000 lines of ExtendScript (.jsx) directly to Photoshop in < 45ms.
-* **Ultra-Lightweight Performance:** < 850ms cold-start latency and a stagnant ~45MB idle memory footprint.
+* **Instant Native Font Installations:** Directly interfaces with the Windows registry and macOS CoreText — no app restarts needed.
+* **Adobe Automation Bridge:** Store and run ExtendScript (.jsx) directly against Photoshop, Illustrator, and After Effects.
+* **Lightweight Native Performance:** Built as a native desktop app, not a wrapped web page — fast to launch, light on memory.
 
 Designed to be invisible, fast, and secure.
 
-👉 Download the v1.0.0 release now on GitHub!
+👉 Get a license and download on GitHub!
 
 #DesignOps #CreativeTech #WorkflowAutomation #Typography #AssetManagement #DesktopApp
 
@@ -33,18 +33,18 @@ Designed to be invisible, fast, and secure.
 
 Say goodbye to slow asset managers and manual font imports. 
 
-Introducing **Rupantor v1.0.0** — a lightning-fast native desktop asset layer for Win/Mac. 💻✨
+Introducing **Rupantor** — a lightning-fast native desktop asset layer for Win/Mac. 💻✨
 
-⚡ < 850ms Cold Start
-🧠 ~45MB Idle Memory footprint
-🎨 < 5ms Native Font installations
-🔌 Instant Adobe DOM integration
+⚡ Native, not a wrapped webpage
+🎨 Native font installation, no restarts
+🔌 Direct Adobe automation (Photoshop, Illustrator, After Effects)
+🔒 Licensed, one-time purchase
 
-Bypass browser sandboxes and take control of your filesystem. 
+Take control of your typography and Adobe workflow.
 
 👉 Github Link: [Insert Link]
 
-#Typography #DeveloperTools #BuildInPublic #OpenSource
+#Typography #DeveloperTools #DesktopApp #CreativeTools
 
 ---
 
@@ -64,6 +64,6 @@ When you design your visual post graphic (using tools like Canva, Figma, Midjour
 * **Visual Elements:** 
   - A subtle icon of a Font (`[F]`) and a Gear/Plugin.
   - Bullet points highlighting:
-    - **Speed:** `< 850ms Cold Boot`
-    - **Memory:** `~45MB Idle RAM`
+    - **Performance:** `Native desktop speed`
     - **Compatibility:** `Windows & macOS`
+    - **Licensing:** `One-time purchase, yearly or lifetime`

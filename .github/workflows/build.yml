@@ -29,6 +29,22 @@ jobs:
       - name: Install Dependencies
         run: npm install
 
+      # package.json's version is otherwise just whatever a developer last
+      # typed by hand — nothing enforced it matched the tag actually being
+      # released. This makes the pushed tag the single source of truth:
+      # electron-builder reads {version} from package.json for artifact
+      # names, the release output directory, and the update manifest, so
+      # this has to happen before the build step, not after.
+      - name: Sync package.json version with the pushed tag
+        shell: bash
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          if ! [[ "$TAG_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-.+)?$ ]]; then
+            echo "Tag '$GITHUB_REF_NAME' doesn't look like a version tag (expected vX.Y.Z) — aborting." >&2
+            exit 1
+          fi
+          npm version "$TAG_VERSION" --no-git-tag-version --allow-same-version
+
       # electron-builder publishes the installers AND the latest.yml /
       # latest-mac.yml / .blockmap files electron-updater needs to detect
       # updates. Uploading only the .exe/.dmg (as before) meant the

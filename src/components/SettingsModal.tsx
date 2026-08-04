@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react';
 import { X, RefreshCw, MonitorX } from 'lucide-react';
 import { toast } from 'sonner';
-import type { LicenseStatus } from '../types';
+import type { LicenseStatus, LicensePlan } from '../types';
+
+const PLAN_LABELS: Record<LicensePlan, string> = {
+  monthly: 'Monthly',
+  yearly: 'Yearly',
+  lifetime: 'Lifetime',
+};
 
 interface SettingsModalProps {
   setIsSettingsOpen: (val: boolean) => void;
@@ -100,7 +106,7 @@ export function SettingsModal({ setIsSettingsOpen, previewText, setPreviewText, 
                 <span className="modal-label">License</span>
                 <div className="modal-value" style={{ marginTop: '4px' }}>
                   {license.valid && license.payload
-                    ? `${license.payload.plan === 'lifetime' ? 'Lifetime' : 'Yearly'} — ${license.payload.name}`
+                    ? `${PLAN_LABELS[license.payload.plan]} — ${license.payload.name}`
                     : 'Not activated'}
                 </div>
                 {license.valid && license.payload?.expiresAt && (
