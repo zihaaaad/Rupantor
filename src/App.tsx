@@ -54,11 +54,9 @@ function App() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
-  const [fonts, setFonts] = useState<FontObj[]>([
-    { name: 'Plus Jakarta Sans', style: 'Bold', active: true, fontFamily: 'Plus Jakarta Sans', isSystem: true },
-    { name: 'Outfit', style: 'Regular', active: false, fontFamily: 'Outfit', isSystem: true },
-    { name: 'JetBrains Mono', style: 'Regular', active: true, fontFamily: 'monospace', isSystem: true }
-  ]);
+  // Populated by the DB-hydration effect below (real DB + OS fonts) right
+  // after mount — starting empty avoids a flash of fake placeholder fonts.
+  const [fonts, setFonts] = useState<FontObj[]>([]);
   
   const [scripts, setScripts] = useState<ScriptObj[]>([]);
 
@@ -409,21 +407,30 @@ function App() {
     }
     
     toast.loading(`Deleting ${customToDelete.length} font(s)...`, { id: 'delete' });
-    
+
+    let vaultFailures = 0;
     for (const f of customToDelete) {
       if (f.active && f.path) {
         await window.electronAPI.uninstallFont(f.path, f.fontFamily);
       }
       if (f.fontFaceInstance) document.fonts.delete(f.fontFaceInstance);
       if (f.path) {
-        await window.electronAPI.deleteFromVault(f.path);
+        const res = await window.electronAPI.deleteFromVault(f.path);
+        if (!res.success) vaultFailures++;
       }
     }
 
     setFonts(prev => prev.filter(f => !customToDelete.some(cd => cd.name === f.name && cd.style === f.style)));
     setSelectedIds(new Set());
     setContextMenu(null);
-    toast.success(`Deleted ${customToDelete.length} font(s).`, { id: 'delete' });
+    // Removed from the library either way — but a failed vault delete leaves
+    // an orphaned file on disk, so surface it instead of pretending cleanup
+    // fully succeeded.
+    if (vaultFailures > 0) {
+      toast.warning(`Deleted ${customToDelete.length} font(s), but ${vaultFailures} vault file(s) could not be removed from disk.`, { id: 'delete' });
+    } else {
+      toast.success(`Deleted ${customToDelete.length} font(s).`, { id: 'delete' });
+    }
   };
 
   const toggleSelectedActive = async () => {

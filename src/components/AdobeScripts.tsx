@@ -55,7 +55,10 @@ export function AdobeScripts({ scripts, setScripts }: AdobeScriptsProps) {
     e.stopPropagation();
     const scriptToDelete = scripts.find(s => s.id === id);
     if (scriptToDelete) {
-      await window.electronAPI.deleteFromVault(scriptToDelete.path);
+      const res = await window.electronAPI.deleteFromVault(scriptToDelete.path);
+      if (!res.success) {
+        toast.warning(`Removed "${scriptToDelete.name}", but its vault file could not be deleted from disk.`);
+      }
     }
     setScripts(prev => prev.filter(s => s.id !== id));
   };
