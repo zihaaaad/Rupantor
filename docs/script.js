@@ -26,8 +26,11 @@ async function fetchLatestRelease() {
         
         // Find correct assets
         data.assets.forEach(asset => {
-            // We want the Setup.exe for Windows, not Portable or internal .exe files
-            if (asset.name.includes('Setup.exe')) {
+            // We want the Setup.exe itself, not Portable or the .exe.blockmap
+            // sidecar electron-builder publishes alongside it — .includes()
+            // matches both, and since the blockmap is listed after the real
+            // installer it would win and overwrite winSetupUrl.
+            if (asset.name.endsWith('Setup.exe')) {
                 winSetupUrl = asset.browser_download_url;
             }
             if (asset.name.endsWith('.dmg')) {
