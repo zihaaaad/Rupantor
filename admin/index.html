@@ -5,20 +5,36 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="robots" content="noindex, nofollow" />
   <title>Rupantor — License Control Panel</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
+  <div class="bg-shape shape-1"></div>
+  <div class="bg-shape shape-2"></div>
+
   <!-- Login -->
   <div id="login-screen" class="centered-screen">
     <form id="login-form" class="panel login-panel">
-      <h1>Rupantor Control Panel</h1>
+      <div class="brand-row">
+        <div class="brand-mark">R</div>
+        <span class="brand-name">Rupantor</span>
+      </div>
+      <h1>Control Panel</h1>
       <p class="muted">Sign in with your admin account.</p>
       <input id="login-email" type="email" placeholder="Email" required autocomplete="username" />
       <input id="login-password" type="password" placeholder="Password" required autocomplete="current-password" />
-      <button type="submit" class="btn-primary">Sign In</button>
+      <button type="submit" class="btn-primary"><i data-lucide="log-in"></i> Sign In</button>
       <div class="login-divider"><span>or</span></div>
-      <button type="button" id="google-login-btn" class="btn-secondary">Continue with Google</button>
+      <button type="button" id="google-login-btn" class="btn-secondary">
+        <svg viewBox="0 0 18 18" width="16" height="16"><path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84c-.21 1.13-.84 2.09-1.79 2.73v2.27h2.9c1.7-1.56 2.69-3.87 2.69-6.64z"/><path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.17l-2.9-2.27c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.97v2.34C2.45 15.98 5.48 18 9 18z"/><path fill="#FBBC05" d="M3.96 10.7c-.18-.54-.28-1.11-.28-1.7s.1-1.16.28-1.7V4.96H.97C.35 6.18 0 7.55 0 9s.35 2.82.97 4.04l2.99-2.34z"/><path fill="#EA4335" d="M9 3.58c1.32 0 2.51.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0 5.48 0 2.45 2.02.97 4.96l2.99 2.34C4.66 5.17 6.65 3.58 9 3.58z"/></svg>
+        Continue with Google
+      </button>
       <div id="login-error" class="error"></div>
     </form>
   </div>
@@ -26,17 +42,23 @@
   <!-- Dashboard -->
   <div id="dashboard" class="hidden">
     <header class="topbar">
-      <h1>Rupantor Licenses</h1>
+      <div class="brand-row" style="margin-bottom:0;">
+        <div class="brand-mark">R</div>
+        <span class="brand-name">Rupantor Licenses</span>
+      </div>
       <div class="topbar-right">
         <span id="admin-email" class="muted"></span>
-        <button id="logout-btn" class="btn-secondary">Sign Out</button>
+        <button id="logout-btn" class="btn-secondary"><i data-lucide="log-out"></i> Sign Out</button>
       </div>
     </header>
 
     <main class="main">
       <div class="toolbar">
-        <input id="search-input" type="text" placeholder="Search by name, email, or key..." class="search-input" />
-        <button id="new-license-btn" class="btn-primary">+ New License</button>
+        <div class="search-wrap">
+          <i data-lucide="search"></i>
+          <input id="search-input" type="text" placeholder="Search by name, email, or key..." class="search-input" />
+        </div>
+        <button id="new-license-btn" class="btn-primary"><i data-lucide="plus"></i> New License</button>
       </div>
 
       <table class="license-table">
@@ -60,27 +82,33 @@
   <div id="new-license-modal" class="modal-overlay hidden">
     <form id="new-license-form" class="panel modal-panel">
       <h2>New License</h2>
-      <label>Customer Name<input id="nl-name" type="text" required /></label>
-      <label>Customer Email<input id="nl-email" type="email" required /></label>
-      <label>Plan
-        <select id="nl-plan">
-          <option value="monthly">Monthly</option>
-          <option value="yearly" selected>Yearly</option>
-          <option value="lifetime">Lifetime</option>
-        </select>
-      </label>
-      <label>Device Limit<input id="nl-device-limit" type="number" min="1" value="2" /></label>
-      <label>Payment Method
-        <select id="nl-payment-method">
-          <option value="bkash">bKash</option>
-          <option value="nagad">Nagad</option>
-        </select>
-      </label>
+      <div class="field-row">
+        <label>Customer Name<input id="nl-name" type="text" required /></label>
+        <label>Customer Email<input id="nl-email" type="email" required /></label>
+      </div>
+      <div class="field-row">
+        <label>Plan
+          <select id="nl-plan">
+            <option value="monthly">Monthly</option>
+            <option value="yearly" selected>Yearly</option>
+            <option value="lifetime">Lifetime</option>
+          </select>
+        </label>
+        <label>Device Limit<input id="nl-device-limit" type="number" min="1" value="2" /></label>
+      </div>
+      <div class="field-row">
+        <label>Payment Method
+          <select id="nl-payment-method">
+            <option value="bkash">bKash</option>
+            <option value="nagad">Nagad</option>
+          </select>
+        </label>
+        <label>Amount (BDT)<input id="nl-amount" type="number" step="0.01" min="0" /></label>
+      </div>
       <label>Transaction ID<input id="nl-transaction-id" type="text" required /></label>
-      <label>Amount (BDT)<input id="nl-amount" type="number" step="0.01" min="0" /></label>
       <div class="modal-actions">
-        <button type="button" id="cancel-new-license" class="btn-secondary">Cancel</button>
-        <button type="submit" class="btn-primary">Create License</button>
+        <button type="button" id="cancel-new-license" class="btn-secondary"><i data-lucide="x"></i> Cancel</button>
+        <button type="submit" class="btn-primary"><i data-lucide="check"></i> Create License</button>
       </div>
     </form>
   </div>
@@ -92,8 +120,8 @@
       <p class="muted">Send this key to the customer:</p>
       <div id="result-key" class="key-display"></div>
       <div class="modal-actions">
-        <button id="copy-result-key" class="btn-secondary">Copy Key</button>
-        <button id="close-result" class="btn-primary">Done</button>
+        <button id="copy-result-key" class="btn-secondary"><i data-lucide="copy"></i> Copy Key</button>
+        <button id="close-result" class="btn-primary"><i data-lucide="check"></i> Done</button>
       </div>
     </div>
   </div>
@@ -105,21 +133,23 @@
       <p id="detail-email" class="muted"></p>
       <p id="detail-key" class="key-display small"></p>
 
-      <label>Status
-        <select id="detail-status">
-          <option value="active">Active</option>
-          <option value="revoked">Revoked</option>
-          <option value="refunded">Refunded</option>
-        </select>
-      </label>
-      <label>Device Limit<input id="detail-device-limit" type="number" min="1" /></label>
+      <div class="field-row">
+        <label>Status
+          <select id="detail-status">
+            <option value="active">Active</option>
+            <option value="revoked">Revoked</option>
+            <option value="refunded">Refunded</option>
+          </select>
+        </label>
+        <label>Device Limit<input id="detail-device-limit" type="number" min="1" /></label>
+      </div>
 
       <h3>Activated Devices</h3>
       <div id="detail-devices"></div>
 
       <div class="modal-actions">
-        <button type="button" id="close-detail" class="btn-secondary">Close</button>
-        <button type="button" id="save-detail" class="btn-primary">Save Changes</button>
+        <button type="button" id="close-detail" class="btn-secondary"><i data-lucide="x"></i> Close</button>
+        <button type="button" id="save-detail" class="btn-primary"><i data-lucide="check"></i> Save Changes</button>
       </div>
     </div>
   </div>

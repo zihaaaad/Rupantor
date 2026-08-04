@@ -47,7 +47,11 @@ async function fetchLatestRelease() {
         if (macDmgUrl) {
             macBtn.href = macDmgUrl;
             macBtn.classList.remove('disabled');
-            macMeta.textContent = `${version} • Universal`;
+            // Only an arm64 .dmg is currently published (see build.yml) — Intel
+            // Macs need Rosetta. Don't claim "Universal" until an x64/universal
+            // build is actually published, or Intel users get a binary that
+            // doesn't run natively despite being told it does.
+            macMeta.textContent = `${version} • Apple Silicon`;
         } else {
             macMeta.textContent = 'Mac build unavailable';
         }
