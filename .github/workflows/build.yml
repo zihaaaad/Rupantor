@@ -58,12 +58,25 @@ jobs:
       # To sign builds later: buy a code-signing cert, base64-encode the
       # .pfx (Windows) / .p12 (macOS), and add CSC_LINK + CSC_KEY_PASSWORD
       # as repo secrets — no workflow changes needed after that.
+      # electron-builder checks CSC_LINK with `!= null`, not truthiness — if the
+      # repo secret doesn't exist, `${{ secrets.CSC_LINK }}` evaluates to an
+      # empty string (not undefined), which electron-builder reads as "yes,
+      # sign with this", tries to resolve it as a certificate path, and fails
+      # ("<repo root> not a file"). Only forward the vars when the secret is
+      # genuinely set, so an unconfigured signing cert means "skip signing"
+      # (the intended/documented behavior) instead of a hard build failure.
+      - name: Resolve optional code-signing secrets
+        shell: bash
+        run: |
+          if [ -n "${{ secrets.CSC_LINK }}" ]; then
+            echo "CSC_LINK=${{ secrets.CSC_LINK }}" >> "$GITHUB_ENV"
+            echo "CSC_KEY_PASSWORD=${{ secrets.CSC_KEY_PASSWORD }}" >> "$GITHUB_ENV"
+          fi
+
       - name: Build & Publish to GitHub Releases (draft)
         run: npm run release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_LINK: ${{ secrets.CSC_LINK }}
-          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
 
   # Once both Windows and Mac builds have uploaded their assets to the
   # draft release, publish it. Publishing is what makes electron-updater
