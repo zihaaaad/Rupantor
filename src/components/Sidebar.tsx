@@ -25,10 +25,20 @@ export function Sidebar({ activeTab, switchTab, setIsSettingsOpen }: SidebarProp
         {title}
       </div>
       {items.map((item, idx) => (
-        <div 
-          key={idx} 
-          className={`nav-item ${activeTab === item.label ? 'active' : ''} ${item.comingSoon ? 'disabled' : ''}`} 
+        <div
+          key={idx}
+          role="button"
+          tabIndex={item.comingSoon ? -1 : 0}
+          aria-current={activeTab === item.label ? 'page' : undefined}
+          aria-disabled={item.comingSoon}
+          className={`nav-item ${activeTab === item.label ? 'active' : ''} ${item.comingSoon ? 'disabled' : ''}`}
           onClick={() => !item.comingSoon && switchTab(item.label)}
+          onKeyDown={(e) => {
+            if (!item.comingSoon && (e.key === 'Enter' || e.key === ' ')) {
+              e.preventDefault();
+              switchTab(item.label);
+            }
+          }}
           style={{ opacity: item.comingSoon ? 0.5 : 1, cursor: item.comingSoon ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -69,7 +79,13 @@ export function Sidebar({ activeTab, switchTab, setIsSettingsOpen }: SidebarProp
       </nav>
 
       <div className="sidebar-footer" style={{ borderTop: '1px solid var(--border)' }}>
-        <div className="nav-item" onClick={() => setIsSettingsOpen(true)}>
+        <div
+          className="nav-item"
+          role="button"
+          tabIndex={0}
+          onClick={() => setIsSettingsOpen(true)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIsSettingsOpen(true); } }}
+        >
           <Settings size={18} />
           <span>Settings</span>
         </div>

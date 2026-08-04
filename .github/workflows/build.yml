@@ -10,58 +10,55 @@ permissions:
 
 jobs:
   build:
-    name: Build on ${{ matrix.os }}
+    name: Build & Publish on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         # Build simultaneously on Windows and macOS virtual machines
         os: [windows-latest, macos-latest]
-    
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          
+
       - name: Install Dependencies
         run: npm install
-        
-      - name: Build Application (.exe / .dmg)
-        run: npm run build
-          
-      - name: Upload Windows Artifact
-        if: matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Rupantor-Windows
-          path: release/*/*.exe
-          
-      - name: Upload Mac Artifact
-        if: matrix.os == 'macos-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: Rupantor-Mac
-          path: release/*/*.dmg
 
-  # Once both Windows and Mac are done building, bundle them into a GitHub Release
-  release:
+      # electron-builder publishes the installers AND the latest.yml /
+      # latest-mac.yml / .blockmap files electron-updater needs to detect
+      # updates. Uploading only the .exe/.dmg (as before) meant the
+      # auto-updater could never actually find a new version.
+      # GH_TOKEN publishes to a draft release; both OS jobs append to the
+      # same draft for this tag, then the publish-release job below makes
+      # it public once both platforms have finished.
+      # CSC_LINK / CSC_KEY_PASSWORD are optional: electron-builder auto-signs
+      # if they're set and silently skips signing if they're not (unsigned
+      # builds still work, they just trigger SmartScreen/Gatekeeper warnings).
+      # To sign builds later: buy a code-signing cert, base64-encode the
+      # .pfx (Windows) / .p12 (macOS), and add CSC_LINK + CSC_KEY_PASSWORD
+      # as repo secrets — no workflow changes needed after that.
+      - name: Build & Publish to GitHub Releases (draft)
+        run: npm run release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+
+  # Once both Windows and Mac builds have uploaded their assets to the
+  # draft release, publish it. Publishing is what makes electron-updater
+  # (running in every installed copy of the app) see the new version and
+  # show the "Update Available" notification to users.
+  publish-release:
+    name: Publish Release
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Download all generated installers
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          
-      - name: Publish to GitHub Releases
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            artifacts/**/*.exe
-            artifacts/**/*.dmg
-          generate_release_notes: true
+      - name: Un-draft the GitHub Release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release edit "${{ github.ref_name }}" --draft=false --repo "${{ github.repository }}"

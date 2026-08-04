@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Rupantor — License Control Panel</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Login -->
+  <div id="login-screen" class="centered-screen">
+    <form id="login-form" class="panel login-panel">
+      <h1>Rupantor Control Panel</h1>
+      <p class="muted">Sign in with your admin account.</p>
+      <input id="login-email" type="email" placeholder="Email" required autocomplete="username" />
+      <input id="login-password" type="password" placeholder="Password" required autocomplete="current-password" />
+      <button type="submit" class="btn-primary">Sign In</button>
+      <div class="login-divider"><span>or</span></div>
+      <button type="button" id="google-login-btn" class="btn-secondary">Continue with Google</button>
+      <div id="login-error" class="error"></div>
+    </form>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard" class="hidden">
+    <header class="topbar">
+      <h1>Rupantor Licenses</h1>
+      <div class="topbar-right">
+        <span id="admin-email" class="muted"></span>
+        <button id="logout-btn" class="btn-secondary">Sign Out</button>
+      </div>
+    </header>
+
+    <main class="main">
+      <div class="toolbar">
+        <input id="search-input" type="text" placeholder="Search by name, email, or key..." class="search-input" />
+        <button id="new-license-btn" class="btn-primary">+ New License</button>
+      </div>
+
+      <table class="license-table">
+        <thead>
+          <tr>
+            <th>Customer</th>
+            <th>Plan</th>
+            <th>Status</th>
+            <th>Devices</th>
+            <th>Expires</th>
+            <th>Key</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="license-table-body"></tbody>
+      </table>
+    </main>
+  </div>
+
+  <!-- New License Modal -->
+  <div id="new-license-modal" class="modal-overlay hidden">
+    <form id="new-license-form" class="panel modal-panel">
+      <h2>New License</h2>
+      <label>Customer Name<input id="nl-name" type="text" required /></label>
+      <label>Customer Email<input id="nl-email" type="email" required /></label>
+      <label>Plan
+        <select id="nl-plan">
+          <option value="yearly">Yearly</option>
+          <option value="lifetime">Lifetime</option>
+        </select>
+      </label>
+      <label>Device Limit<input id="nl-device-limit" type="number" min="1" value="2" /></label>
+      <label>Payment Method
+        <select id="nl-payment-method">
+          <option value="bkash">bKash</option>
+          <option value="nagad">Nagad</option>
+        </select>
+      </label>
+      <label>Transaction ID<input id="nl-transaction-id" type="text" required /></label>
+      <label>Amount (BDT)<input id="nl-amount" type="number" step="0.01" min="0" /></label>
+      <div class="modal-actions">
+        <button type="button" id="cancel-new-license" class="btn-secondary">Cancel</button>
+        <button type="submit" class="btn-primary">Create License</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Result Modal (shows the generated key) -->
+  <div id="result-modal" class="modal-overlay hidden">
+    <div class="panel modal-panel">
+      <h2>License Created</h2>
+      <p class="muted">Send this key to the customer:</p>
+      <div id="result-key" class="key-display"></div>
+      <div class="modal-actions">
+        <button id="copy-result-key" class="btn-secondary">Copy Key</button>
+        <button id="close-result" class="btn-primary">Done</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Manage License Modal -->
+  <div id="detail-modal" class="modal-overlay hidden">
+    <div class="panel modal-panel">
+      <h2 id="detail-name"></h2>
+      <p id="detail-email" class="muted"></p>
+      <p id="detail-key" class="key-display small"></p>
+
+      <label>Status
+        <select id="detail-status">
+          <option value="active">Active</option>
+          <option value="revoked">Revoked</option>
+          <option value="refunded">Refunded</option>
+        </select>
+      </label>
+      <label>Device Limit<input id="detail-device-limit" type="number" min="1" /></label>
+
+      <h3>Activated Devices</h3>
+      <div id="detail-devices"></div>
+
+      <div class="modal-actions">
+        <button type="button" id="close-detail" class="btn-secondary">Close</button>
+        <button type="button" id="save-detail" class="btn-primary">Save Changes</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

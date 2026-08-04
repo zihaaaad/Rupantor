@@ -4,15 +4,40 @@ import opentype from 'opentype.js';
 import { Toaster, toast } from 'sonner';
 import './App.css';
 
-import type { FontObj, ScriptObj } from './types';
+import type { FontObj, ScriptObj, LicenseStatus } from './types';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
 import { Collections } from './components/Collections';
 import { SettingsModal } from './components/SettingsModal';
 import { AdobeScripts } from './components/AdobeScripts';
 import { Titlebar } from './components/Titlebar';
+import { ActivateLicense } from './components/ActivateLicense';
 
 function App() {
+  // null = still checking against Firestore (falls back to a locally
+  // cached result within the offline grace period if unreachable).
+  const [licenseStatus, setLicenseStatus] = useState<LicenseStatus | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.electronAPI?.getLicenseStatus) {
+      window.electronAPI.getLicenseStatus()
+        .then(setLicenseStatus)
+        .catch(() => setLicenseStatus({ valid: false, reason: 'Could not verify license.' }));
+    } else {
+      setLicenseStatus({ valid: true });
+    }
+  }, []);
+
+  // Backstop: if main.ts's periodic re-check (every 4h) finds the license
+  // was revoked/refunded/expired while the app is already open, drop back
+  // to the activation gate instead of waiting for a restart.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.electronAPI?.onLicenseInvalidated) return;
+    return window.electronAPI.onLicenseInvalidated((reason) => {
+      setLicenseStatus({ valid: false, reason });
+    });
+  }, []);
+
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [previewText, setPreviewText] = useState('Rupantor');
   const [searchQuery, setSearchQuery] = useState('');
@@ -156,7 +181,9 @@ function App() {
         setIsSettingsOpen(false);
         setContextMenu(null);
       }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIds.size > 0 && !detailFont && !isSettingsOpen) {
+      const target = e.target as HTMLElement;
+      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+      if (!isTyping && (e.key === 'Delete' || e.key === 'Backspace') && selectedIds.size > 0 && !detailFont && !isSettingsOpen) {
         deleteSelected();
       }
     };
@@ -194,13 +221,13 @@ function App() {
     setContextMenu(null);
   };
 
-  const processFile = async (file: File): Promise<{ type: 'script' | 'font', payload: any }> => {
+  const processFile = useCallback(async (file: File): Promise<{ type: 'script' | 'font', payload: any }> => {
     if (file.size > 20 * 1024 * 1024) throw new Error('File too large');
 
-    return new Promise(async (resolve, reject) => {
+    return new Promise((resolve, reject) => {
       if (file.name.match(/\.jsx$/i)) {
-        const nativePath = (file as any).path;
-        let targetApp = 'Photoshop';
+        const nativePath = window.electronAPI.pathForFile(file);
+        let targetApp: ScriptObj['targetApp'] = 'Photoshop';
         const nameLower = file.name.toLowerCase();
         if (nameLower.includes('ae') || nameLower.includes('aftereffects')) targetApp = 'After Effects';
         else if (nameLower.includes('ai') || nameLower.includes('illustrator')) targetApp = 'Illustrator';
@@ -238,8 +265,8 @@ function App() {
 
           const familyName = getSafeName(font.names.fontFamily, file.name.replace(/\.(ttf|otf)$/i, ''));
           const styleName = getSafeName(font.names.fontSubfamily, 'Regular');
-          
-          const nativePath = (file as any).path;
+
+          const nativePath = window.electronAPI.pathForFile(file);
           
           // Return nativePath, Vault copy happens in processAndSetFiles
           resolve({
@@ -259,9 +286,9 @@ function App() {
       reader.onerror = () => reject(new Error('Failed to read file'));
       reader.readAsArrayBuffer(file);
     });
-  };
+  }, []);
 
-  const processAndSetFiles = async (files: File[]) => {
+  const processAndSetFiles = useCallback(async (files: File[]) => {
     let successCount = 0;
     let dupCount = 0;
     
@@ -278,8 +305,8 @@ function App() {
           if (isDupScript) {
             dupCount++;
           } else {
-            if ((window as any).electronAPI?.copyToVault && res.payload.path) {
-              res.payload.path = await (window as any).electronAPI.copyToVault(res.payload.path);
+            if (res.payload.path) {
+              res.payload.path = await window.electronAPI.copyToVault(res.payload.path);
             }
             newScripts.push(res.payload);
             successCount++;
@@ -291,8 +318,8 @@ function App() {
           if (isDup) {
             dupCount++;
           } else {
-            if ((window as any).electronAPI?.copyToVault && fontPayload.path) {
-              fontPayload.path = await (window as any).electronAPI.copyToVault(fontPayload.path);
+            if (fontPayload.path) {
+              fontPayload.path = await window.electronAPI.copyToVault(fontPayload.path);
             }
             const fontUrl = fontPayload.path ? `local://${encodeURI(fontPayload.path.replace(/\\/g, '/'))}` : URL.createObjectURL(fontPayload.file);
             const fontFace = new FontFace(fontPayload.fontFamily, `url("${fontUrl}")`);
@@ -313,7 +340,7 @@ function App() {
     if (newFonts.length > 0) setFonts(prev => [...newFonts, ...prev]);
     
     return { successCount, dupCount, hasScripts: newScripts.length > 0, hasFonts: newFonts.length > 0 };
-  };
+  }, [scripts, fonts, processFile]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
@@ -341,7 +368,7 @@ function App() {
       if (hasScripts && !hasFonts) switchTab('Adobe JSX Scripts');
       else if (hasFonts) switchTab('Font Management');
     }
-  }, [fonts]);
+  }, [processAndSetFiles]);
 
   // Multi-select Logic
   const handleFontClick = (e: React.MouseEvent, font: FontObj, idx: number) => {
@@ -396,8 +423,8 @@ function App() {
         await window.electronAPI.uninstallFont(f.path, f.fontFamily);
       }
       if (f.fontFaceInstance) document.fonts.delete(f.fontFaceInstance);
-      if (f.path && (window as any).electronAPI?.deleteFromVault) {
-        await (window as any).electronAPI.deleteFromVault(f.path);
+      if (f.path) {
+        await window.electronAPI.deleteFromVault(f.path);
       }
     }
 
@@ -438,10 +465,29 @@ function App() {
 
   const getFontById = (id: string) => fonts.find(f => `${f.name}-${f.style}` === id);
 
-  const filteredDashboard = useMemo(() => dashboardFeatures.filter(f => 
-    f.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+  const filteredDashboard = useMemo(() => dashboardFeatures.filter(f =>
+    f.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
     f.desc.toLowerCase().includes(searchQuery.toLowerCase())
   ), [dashboardFeatures, searchQuery]);
+
+  if (licenseStatus === null) {
+    return <div className="app-wrapper"><Titlebar /></div>;
+  }
+
+  if (!licenseStatus.valid) {
+    return (
+      <div className="app-wrapper">
+        <Titlebar />
+        <div className="app-container" style={{ alignItems: 'center', justifyContent: 'center' }}>
+          <Toaster theme="dark" position="bottom-right" />
+          <ActivateLicense
+            reason={licenseStatus.reason}
+            onActivated={setLicenseStatus}
+          />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-wrapper">
@@ -497,8 +543,8 @@ function App() {
 
               <div className="toolbar-actions" style={{ flex: 1, display: 'flex', justifyContent: 'flex-end', gap: '12px', alignItems: 'center' }}>
                 <div style={{ display: 'flex', background: 'var(--bg-sidebar)', borderRadius: '8px', padding: '4px', border: '1px solid var(--border)' }}>
-                  <button className={`icon-btn ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode('grid')}><Grid size={16} /></button>
-                  <button className={`icon-btn ${viewMode === 'list' ? 'active' : ''}`} onClick={() => setViewMode('list')}><List size={16} /></button>
+                  <button aria-label="Grid view" aria-pressed={viewMode === 'grid'} className={`icon-btn ${viewMode === 'grid' ? 'active' : ''}`} onClick={() => setViewMode('grid')}><Grid size={16} /></button>
+                  <button aria-label="List view" aria-pressed={viewMode === 'list'} className={`icon-btn ${viewMode === 'list' ? 'active' : ''}`} onClick={() => setViewMode('list')}><List size={16} /></button>
                 </div>
                 <button className="add-asset-btn" onClick={() => fileInputRef.current?.click()} style={{ margin: 0, padding: '10px 20px' }}>
                   <UploadCloud size={18} /> Import Fonts
@@ -518,12 +564,28 @@ function App() {
                   const id = `${font.name}-${font.style}`;
                   const isSelected = selectedIds.has(id);
                   return (
-                    <div 
-                      className={`font-card ${isSelected ? 'selected' : ''}`} 
-                      key={id} 
+                    <div
+                      className={`font-card ${isSelected ? 'selected' : ''}`}
+                      key={id}
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={isSelected}
+                      aria-label={`${font.name} ${font.style}${isSelected ? ', selected' : ''}`}
                       onClick={(e) => handleFontClick(e, font, idx)}
                       onContextMenu={(e) => handleContextMenu(e, font, idx)}
                       onDoubleClick={() => setDetailFont(font)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          setDetailFont(font);
+                        } else if (e.key === ' ') {
+                          e.preventDefault();
+                          const newSet = new Set(selectedIds);
+                          if (newSet.has(id)) newSet.delete(id); else newSet.add(id);
+                          setSelectedIds(newSet);
+                          setLastSelectedIdx(idx);
+                        }
+                      }}
                     >
                       <div className="card-header">
                         <span className="font-name">{font.name}</span>
@@ -578,7 +640,7 @@ function App() {
         )}
       </main>
 
-      {isSettingsOpen && <SettingsModal setIsSettingsOpen={setIsSettingsOpen} previewText={previewText} setPreviewText={setPreviewText} />}
+      {isSettingsOpen && <SettingsModal setIsSettingsOpen={setIsSettingsOpen} previewText={previewText} setPreviewText={setPreviewText} onDeviceDeactivated={() => setLicenseStatus({ valid: false, reason: 'Device deactivated.' })} />}
 
       {detailFont && (
         <div className="modal-overlay" onClick={() => setDetailFont(null)}>
@@ -588,7 +650,7 @@ function App() {
                 <h2 className="modal-title">{detailFont.name}</h2>
                 <p className="modal-subtitle">{detailFont.style} • {detailFont.isSystem ? 'System Font' : 'Custom Upload'}</p>
               </div>
-              <button className="modal-close" onClick={() => setDetailFont(null)}><X size={20} /></button>
+              <button className="modal-close" aria-label="Close" onClick={() => setDetailFont(null)}><X size={20} /></button>
             </div>
             
             <div className="modal-body scrollable" style={{ paddingTop: 0 }}>
@@ -604,7 +666,7 @@ function App() {
               <div className="modal-row" style={{ borderBottom: 'none', paddingBottom: 0, marginTop: '24px' }}><span className="modal-label">Font Details</span></div>
               <div className="waterfall-container">
                 <div className="modal-row"><span className="modal-label">Family Name</span><span className="modal-value">{detailFont.fontFamily}</span></div>
-                <div className="modal-row"><span className="modal-label">Install Location</span><span className="modal-value">{detailFont.isSystem ? 'C:\\Windows\\Fonts' : 'C:\\Users\\Creative\\RupantorSync'}</span></div>
+                <div className="modal-row"><span className="modal-label">Install Location</span><span className="modal-value">{detailFont.isSystem ? 'System font directory' : (detailFont.path || 'Not yet saved to disk')}</span></div>
               </div>
             </div>
 

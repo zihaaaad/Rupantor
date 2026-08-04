@@ -1,9 +1,53 @@
-import { app, BrowserWindow, ipcMain, protocol, net } from 'electron';
+import { app, BrowserWindow, ipcMain, protocol, net, session } from 'electron';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { initDb, getDbData, saveDbData } from './db.js';
+import { checkLicenseOnline, deactivateDevice, type RemoteLicenseDoc } from './firebaseLicense.js';
+import { randomUUID } from 'crypto';
 import fontList from 'font-list';
 import { autoUpdater } from 'electron-updater';
+
+// How long a device may keep running on the last known-good Firestore
+// answer without being able to reach the internet at all.
+const LICENSE_CACHE_GRACE_MS = 14 * 24 * 60 * 60 * 1000;
+// Re-check cadence while the app is running, mirroring the update-check
+// interval — so a revoked/refunded license takes effect without requiring
+// a restart, not just at the next launch.
+const LICENSE_RECHECK_MS = 4 * 60 * 60 * 1000;
+
+function getDeviceId(): string {
+  const existing = getDbData().deviceId;
+  if (existing) return existing;
+  const id = randomUUID();
+  saveDbData('deviceId', id);
+  return id;
+}
+
+function toLicensePayload(data: RemoteLicenseDoc) {
+  return { name: data.name, email: data.email, plan: data.plan, issuedAt: Date.now(), expiresAt: data.expiresAt };
+}
+
+async function refreshLicenseStatus(): Promise<{ valid: boolean; reason?: string; payload?: ReturnType<typeof toLicensePayload> }> {
+  const licenseKey = getDbData().licenseKey;
+  if (!licenseKey) return { valid: false, reason: 'No license activated.' };
+
+  const deviceId = getDeviceId();
+  try {
+    const result = await checkLicenseOnline(licenseKey, deviceId);
+    if (result.ok) {
+      await saveDbData('licenseCache', { data: result.data, cachedAt: Date.now() });
+      return { valid: true, payload: toLicensePayload(result.data) };
+    }
+    return { valid: false, reason: result.reason };
+  } catch (err) {
+    console.error('License check failed (offline, or Firebase misconfigured):', err);
+    const cache = getDbData().licenseCache; // read fresh, not a pre-await snapshot
+    if (cache && Date.now() - cache.cachedAt < LICENSE_CACHE_GRACE_MS) {
+      return { valid: true, payload: toLicensePayload(cache.data) };
+    }
+    return { valid: false, reason: 'Could not reach the license server, and the offline grace period has expired. Please reconnect to the internet.' };
+  }
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -48,10 +92,28 @@ function createWindow() {
   }
 
   win.webContents.on('did-finish-load', () => {
-    // Suppress errors if run in dev mode without a package.json github block
-    autoUpdater.checkForUpdatesAndNotify().catch(() => console.log("AutoUpdater not running in dev"));
+    checkForUpdates();
   });
 }
+
+function checkForUpdates() {
+  // Suppress errors if run in dev mode without a package.json github block
+  autoUpdater.checkForUpdatesAndNotify().catch(() => console.log("AutoUpdater not running in dev"));
+}
+
+// Re-check periodically so a release pushed while the app is already
+// running (not just at launch) still reaches the user.
+setInterval(checkForUpdates, 4 * 60 * 60 * 1000); // every 4 hours
+
+// Same idea for licensing: if it's revoked/refunded while the app is
+// already open, this catches it without waiting for a restart.
+setInterval(async () => {
+  if (!getDbData().licenseKey) return;
+  const status = await refreshLicenseStatus();
+  if (!status.valid) {
+    win?.webContents.send('license-invalidated', status.reason);
+  }
+}, LICENSE_RECHECK_MS);
 
 // Setup autoUpdater listeners
 autoUpdater.on('update-available', (info) => {
@@ -60,12 +122,20 @@ autoUpdater.on('update-available', (info) => {
 autoUpdater.on('update-downloaded', (info) => {
   win?.webContents.send('update-downloaded', info);
 });
+autoUpdater.on('update-not-available', () => {
+  win?.webContents.send('update-not-available');
+});
+autoUpdater.on('error', (err) => {
+  win?.webContents.send('update-error', err?.message || String(err));
+});
 ipcMain.handle('download-update', () => {
   autoUpdater.downloadUpdate();
 });
 ipcMain.handle('quit-and-install', () => {
   autoUpdater.quitAndInstall();
 });
+ipcMain.handle('get-app-version', () => app.getVersion());
+ipcMain.handle('check-for-updates', () => checkForUpdates());
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
@@ -82,7 +152,23 @@ app.on('activate', () => {
 
 app.whenReady().then(() => {
   initDb();
-  
+
+  // Only in production — the Vite dev server needs inline/eval scripts for
+  // HMR that this CSP would block. The `local://` protocol is registered
+  // with bypassCSP: true above, so custom fonts still load fine under this.
+  if (!VITE_DEV_SERVER_URL) {
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self';"
+          ]
+        }
+      });
+    });
+  }
+
   // Custom protocol to load local fonts bypassing web security
   protocol.handle('local', (request) => {
     const url = request.url.replace('local://', '');
@@ -92,9 +178,51 @@ app.whenReady().then(() => {
   createWindow();
 });
 
-// Database IPC
-ipcMain.handle('get-db-data', () => getDbData());
+// Database IPC. Only exposes the app-data keys the renderer actually
+// consumes here — licenseKey/licenseCache/deviceId are internal to the
+// licensing flow (which has its own dedicated get-license-status channel)
+// and have no reason to round-trip through the renderer.
+ipcMain.handle('get-db-data', () => {
+  const { fonts, collections, scripts } = getDbData();
+  return { fonts, collections, scripts };
+});
 ipcMain.on('save-db-data', (event, key, value) => saveDbData(key, value));
+
+// Licensing: Firestore is the source of truth (enables revocation, real
+// server-side expiry, and device-limit enforcement — see firestore.rules
+// and electron/firebaseLicense.ts). The last known-good answer is cached
+// locally so the app still works offline for LICENSE_CACHE_GRACE_MS.
+ipcMain.handle('get-license-status', () => refreshLicenseStatus());
+
+ipcMain.handle('activate-license', async (event, licenseKey: string) => {
+  const deviceId = getDeviceId();
+  try {
+    const result = await checkLicenseOnline(licenseKey, deviceId);
+    if (result.ok) {
+      await saveDbData('licenseKey', licenseKey);
+      await saveDbData('licenseCache', { data: result.data, cachedAt: Date.now() });
+      return { valid: true, payload: toLicensePayload(result.data) };
+    }
+    return { valid: false, reason: result.reason };
+  } catch (err) {
+    console.error('License activation failed:', err);
+    return { valid: false, reason: 'Could not reach the license server. Check your internet connection and try again.' };
+  }
+});
+
+// Lets a customer free up their own device slot (e.g. before wiping a PC)
+// without needing you to manually edit Firestore for every case.
+ipcMain.handle('deactivate-device', async () => {
+  const licenseKey = getDbData().licenseKey;
+  if (!licenseKey) return { ok: false, reason: 'No license activated.' };
+
+  const result = await deactivateDevice(licenseKey, getDeviceId());
+  if (result.ok) {
+    await saveDbData('licenseKey', null);
+    await saveDbData('licenseCache', null);
+  }
+  return result;
+});
 
 import { installFontToOS, uninstallFontFromOS } from './installFont.js';
 
@@ -188,14 +316,11 @@ ipcMain.handle('execute-script', async (event, scriptPath, targetApp) => {
   });
 });
 
-ipcMain.handle('read-file', async (event, filePath) => {
-  try {
-    return await fs.promises.readFile(filePath, 'utf8');
-  } catch (e) {
-    console.error('File read error:', e);
-    return 'Error reading file.';
-  }
-});
+// Lets the rejection propagate to the renderer instead of swallowing it
+// into a string — a caller that doesn't check for an error string could
+// otherwise "successfully" read an error message as if it were real file
+// content, and if it later writes that back out, silently destroy the file.
+ipcMain.handle('read-file', (event, filePath) => fs.promises.readFile(filePath, 'utf8'));
 
 ipcMain.handle('write-file', async (event, filePath, content) => {
   try {
@@ -228,9 +353,11 @@ ipcMain.handle('copy-to-vault', async (event, originalPath) => {
 ipcMain.handle('delete-from-vault', async (event, filePath) => {
   try {
     const vaultDir = path.join(app.getPath('userData'), 'Vault');
-    // Basic security check to ensure we only delete within the Vault
-    if (filePath.startsWith(vaultDir) && fs.existsSync(filePath)) {
-      await fs.promises.unlink(filePath);
+    // Resolve + compare with a trailing separator so a sibling directory
+    // that merely starts with "Vault" (e.g. "VaultOld") can't pass this check.
+    const resolvedPath = path.resolve(filePath);
+    if (resolvedPath.startsWith(vaultDir + path.sep) && fs.existsSync(resolvedPath)) {
+      await fs.promises.unlink(resolvedPath);
       return { success: true };
     }
     return { success: false, message: 'File not in vault or does not exist' };
