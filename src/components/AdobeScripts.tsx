@@ -32,13 +32,18 @@ export function AdobeScripts({ scripts, setScripts }: AdobeScriptsProps) {
 
   const handleView = async (script: ScriptObj) => {
     setViewingScript(script);
-    setReadFailed(false);
     try {
-      const content = await window.electronAPI.readFile(script.path);
-      setCodeContent(content);
+      const res = await window.electronAPI.readFile(script.path);
+      if (res.success && res.content !== undefined) {
+        setCodeContent(res.content);
+        setReadFailed(false);
+      } else {
+        setCodeContent('// Error: File could not be read or does not exist at path:\n// ' + script.path);
+        setReadFailed(true);
+      }
     } catch {
+      setCodeContent('// Error: File could not be read or does not exist at path:\n// ' + script.path);
       setReadFailed(true);
-      setCodeContent('// Could not read this file — it may have been moved or deleted:\n// ' + script.path);
     }
   };
 
