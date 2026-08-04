@@ -76,7 +76,7 @@ $WM_FONTCHANGE = 0x001D
       
       try {
         fs.writeFileSync(ps1Path, psScript, 'utf8');
-      } catch (e) {
+      } catch {
         return resolve(false);
       }
 
@@ -161,7 +161,7 @@ $WM_FONTCHANGE = 0x001D
       
       try {
         fs.writeFileSync(ps1Path, psScript, 'utf8');
-      } catch (e) {
+      } catch {
         return resolve(false);
       }
 

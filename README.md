@@ -1,45 +1,29 @@
-# Rupantor Architecture & Performance Data
+# Rupantor
 
-Rupantor is a native desktop asset management layer engineered for Windows 10/11 and macOS environments. It bypasses standard web browser sandbox limitations to achieve direct operating system and filesystem manipulation.
+Rupantor is a native desktop app for Windows and macOS that centralizes font management and Adobe automation for creative professionals: import, preview, and install/uninstall fonts directly to the OS, and store/run ExtendScript (`.jsx`) automation against Photoshop, Illustrator, and After Effects.
 
-## System Architecture
+## Architecture
 
-The application is structured into a bifurcated Node.js (V8) and Chromium execution environment.
+- **Shell:** Electron, with `contextIsolation` enabled and `nodeIntegration` disabled — the renderer talks to the OS only through a typed IPC bridge (`electron/preload.ts`).
+- **UI:** React + TypeScript, built with Vite.
+- **Local data:** fonts/scripts/collections are cached in a local JSON file under the OS's app-data directory; writes are serialized to avoid races between concurrent saves.
+- **Licensing:** license keys are Firestore document IDs, validated against Firebase (`electron/firebaseLicense.ts`) with an offline grace-period cache so the app keeps working briefly without a connection. `firestore.rules` is the actual security boundary — it restricts what a customer's copy of the app can write (device-tracking fields only) versus what only the admin control panel can do (create/revoke/edit licenses).
+- **Admin control panel:** a small standalone static site (`admin/`) deployed on Firebase Hosting, gated to a single admin account, for issuing and managing licenses without touching Firestore by hand.
+- **Font install:** native OS integration — copies the font file and registers it via the Windows registry (`HKCU\...\Fonts` + a `WM_FONTCHANGE` broadcast) or into `~/Library/Fonts` on macOS.
+- **Adobe automation:** on Windows, scripts run via a PowerShell-driven COM bridge to the target app; on macOS, via AppleScript/`osascript`. All dynamic values passed into these shells are base64-encoded before interpolation to avoid injection.
 
-*   **Runtime Dependency Weight:** < 180MB (Compiled Electron binary)
-*   **Memory Footprint (Idle):** ~45MB - 65MB RAM
-*   **Startup Latency (Cold Boot):** < 850ms on PCIe Gen3 NVMe SSDs
-*   **Context Isolation:** 100% Strict (nodeIntegration disabled)
-*   **Inter-Process Communication (IPC):** Asynchronous Promise-based bridge via `preload.ts`
+## Development
 
-## Performance Metrics & Telemetry
+```
+npm install
+npm run dev      # Vite + Electron in dev mode
+npm run build    # type-check, build, and package installers (no publish)
+npm run release  # same, but publishes to GitHub Releases (used by CI)
+```
 
-### 1. Typography Engine (opentype.js)
-*   **Parsing Speed:** Averages 12ms per standard TrueType (.ttf) font file (400KB - 800KB).
-*   **Memory Management:** Implements aggressive V8 Garbage Collection parameters (`document.fonts.delete()`) allowing users to dynamically load and unload up to 5,000+ fonts in a single session without memory ballooning above 300MB.
-*   **Native OS Installation Latency:** 
-    *   **macOS (CoreText):** < 5ms (Direct standard file copy to `~/Library/Fonts`)
-    *   **Windows (Win32 API):** ~120ms (Includes file copy to `%LOCALAPPDATA%`, HKCU Registry manipulation, and global `WM_FONTCHANGE` broadcast).
+## Release pipeline
 
-### 2. Adobe DOM Automation Bridge
-*   **Throughput:** Capable of passing 10,000+ lines of ExtendScript (.jsx) payload to the target application in < 45ms.
-*   **Windows Subsystem:** Utilizes `[System.Runtime.InteropServices.Marshal]::GetActiveObject` to hook into active COM threads, mitigating the 3000ms+ penalty of cold-starting `Photoshop.exe`.
-*   **macOS Subsystem:** Leverages compiled AppleScript via `osascript` targeting bundle ID `com.adobe.Photoshop`, achieving < 60ms IPC execution latency.
-
-### 3. Database Persistence
-*   **Engine:** Custom synchronous JSON local storage implementation.
-*   **I/O Write Speed:** < 2ms for standard state arrays (100+ objects).
-*   **Location:** Sandboxed strictly to `%APPDATA%\rupantor_db.json` (Windows) or `~/Library/Application Support/rupantor_db.json` (Mac).
-
-## Continuous Integration Data
-
-The repository utilizes GitHub Actions matrix strategy for simultaneous multi-platform compilation.
-
-*   **Build Pipeline Concurrency:** 2 parallel VMs (Ubuntu/Windows & macOS).
-*   **Average Build Time:** 
-    *   Windows (NSIS .exe): ~2 minutes 15 seconds
-    *   macOS (Disk Image .dmg): ~3 minutes 40 seconds
-*   **Release Deployment:** Automated zero-touch payload delivery to GitHub Releases via `softprops/action-gh-release@v2`.
+Pushing a `v*` tag triggers `.github/workflows/build.yml`: it builds on Windows and macOS in parallel, and each job publishes its installer plus the `latest.yml`/`latest-mac.yml`/`.blockmap` metadata `electron-updater` needs directly to a draft GitHub Release via `electron-builder`. Once both platforms finish, a final job un-drafts the release, which is what makes already-installed copies of the app pick up the update (checked on launch and every 4 hours while running).
 
 ## License
 

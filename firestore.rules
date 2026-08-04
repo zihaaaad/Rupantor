@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /licenses/{licenseId} {
+      // Set this to the exact email you sign into the control panel with
+      // (Firebase Console > Authentication > Add User). Only that account
+      // gets admin access — everyone else is limited to the rules below.
+      function isAdmin() {
+        return request.auth != null && request.auth.token.email == 'zihad.connects@gmail.com';
+      }
+
+      // Knowing the exact license key (the doc ID) is the credential —
+      // anyone who has a valid key can read their own doc. This is how
+      // the Rupantor app itself validates a customer's license.
+      allow get: if true;
+
+      // Only the control panel (signed in as the admin) can list/search
+      // the whole collection — customers' apps never need to, and without
+      // this restriction `allow get: if true` above would let anyone
+      // enumerate every customer's data.
+      allow list: if isAdmin();
+
+      // Only the control panel can create or delete license documents.
+      allow create, delete: if isAdmin();
+
+      // The control panel has full write access. A customer's app may
+      // only touch device-tracking fields when it checks in — it can
+      // never change its own plan, status, expiry, or device limit.
+      allow update: if isAdmin() || (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['activatedDevices', 'lastValidatedAt'])
+        && request.resource.data.status == resource.data.status
+        && request.resource.data.plan == resource.data.plan
+        && request.resource.data.expiresAt == resource.data.expiresAt
+        && request.resource.data.deviceLimit == resource.data.deviceLimit
+        && request.resource.data.activatedDevices.size() <= resource.data.deviceLimit
+      );
+    }
+  }
+}

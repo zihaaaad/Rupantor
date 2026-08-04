@@ -1,28 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap');
-
-:root {
-  --bg-app: #09090b;
-  --bg-sidebar: rgba(9, 9, 11, 0.65);
-  --bg-panel: #18181b;
-  --bg-card: rgba(24, 24, 27, 0.5);
-  --bg-card-hover: rgba(39, 39, 42, 0.75);
-  
-  --text-main: #FAFAFA;
-  --text-muted: #A1A1AA;
-  --text-faint: #52525B;
-  
-  --border: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.2);
-  
-  --accent: #EAEAEA;
-  --accent-muted: #333333;
-  --accent-blue: #3B82F6;
-  --accent-glow: rgba(59, 130, 246, 0.4);
-  
-  --font-body: 'Plus Jakarta Sans', -apple-system, sans-serif;
-  --font-heading: 'Outfit', -apple-system, sans-serif;
-}
-
 * {
   box-sizing: border-box;
 }
@@ -31,35 +6,13 @@ body {
   margin: 0;
   font-family: var(--font-body);
   background-color: var(--bg-app);
-  background-image: 
+  background-image:
     radial-gradient(circle at 15% 50%, rgba(59, 130, 246, 0.06), transparent 25%),
     radial-gradient(circle at 85% 30%, rgba(139, 92, 246, 0.06), transparent 25%);
   color: var(--text-main);
   overflow: hidden;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-}
-
-::selection {
-  background: rgba(255, 255, 255, 0.15);
-  color: #fff;
-}
-
-/* Custom Minimalist Scrollbar */
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 10px;
-  border: 3px solid var(--bg-app); 
-}
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
 }
 
 .app-wrapper {
@@ -87,32 +40,6 @@ body {
   height: 100%;
   -webkit-app-region: drag;
 }
-.titlebar-controls {
-  display: flex;
-  height: 100%;
-  -webkit-app-region: no-drag;
-}
-.titlebar-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  width: 46px;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: background 0.1s, color 0.1s;
-}
-.titlebar-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
-.titlebar-btn.close:hover {
-  background: #E81123;
-  color: #fff;
-}
-
 .app-container {
   display: flex;
   flex: 1;
@@ -386,6 +313,12 @@ body {
   gap: 12px;
 }
 
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
 @keyframes slide-up-fade {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
@@ -444,6 +377,10 @@ body {
   margin-bottom: 32px;
   word-break: break-word;
   color: #fff;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .card-footer {
   display: flex;
@@ -683,6 +620,7 @@ input:checked + .slider:before { transform: translateX(14px); background-color: 
 .dashboard-header h1 { font-family: var(--font-heading); font-size: 2.5rem; font-weight: 500; margin: 0 0 8px 0; color: #fff; letter-spacing: -0.02em; }
 .dashboard-header p { color: var(--text-muted); margin: 0; font-size: 1.05rem; }
 .bento-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; }
+.section-label { font-family: var(--font-heading); font-size: 0.8rem; font-weight: 600; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.08em; margin: 8px 0 -8px; }
 .bento-card {
   background-color: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 32px; display: flex; flex-direction: column; position: relative; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); overflow: hidden; backdrop-filter: blur(12px);
 }
