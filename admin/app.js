@@ -25,6 +25,10 @@ const db = getFirestore(app);
 const $ = (sel) => document.querySelector(sel);
 const PLAN_LABELS = { monthly: 'Monthly', yearly: 'Yearly', lifetime: 'Lifetime' };
 
+// lucide replaces <i data-lucide="..."> tags with inline SVGs — needs
+// re-running after any innerHTML update that injects new icon tags.
+lucide.createIcons();
+
 // ---------- Auth ----------
 
 $('#login-form').addEventListener('submit', async (e) => {
@@ -120,21 +124,23 @@ function renderTable(licenses) {
     const license = licenses.find(l => l.id === id);
     const actionsCell = row.querySelector('.actions-cell');
 
-    const copyBtn = makeBtn('Copy Key', () => {
+    const copyBtn = makeBtn('copy', 'Copy Key', () => {
       navigator.clipboard.writeText(id);
-      copyBtn.textContent = 'Copied!';
-      setTimeout(() => copyBtn.textContent = 'Copy Key', 1200);
+      copyBtn.innerHTML = '<i data-lucide="check"></i> Copied!';
+      lucide.createIcons();
+      setTimeout(() => { copyBtn.innerHTML = '<i data-lucide="copy"></i> Copy Key'; lucide.createIcons(); }, 1200);
     });
-    const detailBtn = makeBtn('Manage', () => openDetail(license));
+    const detailBtn = makeBtn('settings-2', 'Manage', () => openDetail(license));
 
     actionsCell.append(copyBtn, detailBtn);
   });
+  lucide.createIcons();
 }
 
-function makeBtn(label, onClick) {
+function makeBtn(icon, label, onClick) {
   const btn = document.createElement('button');
   btn.className = 'btn-small';
-  btn.textContent = label;
+  btn.innerHTML = `<i data-lucide="${icon}"></i> ${label}`;
   btn.onclick = onClick;
   return btn;
 }
@@ -229,7 +235,7 @@ function openDetail(license) {
     : devices.map(d => `
         <div class="device-row">
           <span class="cell-secondary">${escapeHtml(d.deviceId)} — activated ${fmtDate(d.activatedAt)}</span>
-          <button class="btn-small btn-danger-small" data-device="${escapeHtml(d.deviceId)}">Remove</button>
+          <button class="btn-small btn-danger-small" data-device="${escapeHtml(d.deviceId)}"><i data-lucide="trash-2"></i> Remove</button>
         </div>
       `).join('');
 
@@ -238,6 +244,7 @@ function openDetail(license) {
   });
 
   $('#detail-modal').classList.remove('hidden');
+  lucide.createIcons();
 }
 
 $('#close-detail').addEventListener('click', () => $('#detail-modal').classList.add('hidden'));
