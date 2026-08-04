@@ -47,6 +47,10 @@ export function AdobeScripts({ scripts, setScripts }: AdobeScriptsProps) {
     }
   };
 
+  const updateTargetApp = (id: string, targetApp: ScriptObj['targetApp']) => {
+    setScripts(prev => prev.map(s => s.id === id ? { ...s, targetApp } : s));
+  };
+
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     const scriptToDelete = scripts.find(s => s.id === id);
@@ -123,7 +127,23 @@ export function AdobeScripts({ scripts, setScripts }: AdobeScriptsProps) {
           >
             <FileCode size={32} style={{ color: 'var(--accent-blue)', marginBottom: '12px' }} />
             <h3 style={{ margin: '0 0 8px 0', color: '#fff', fontSize: '1.1rem' }}>{s.name}</h3>
-            <span style={{ fontSize: '0.75rem', background: 'rgba(255,255,255,0.1)', padding: '4px 8px', borderRadius: '4px' }}>{s.targetApp}</span>
+            {/* Filename-based detection (App.tsx/AdobeScripts import heuristics) can
+                mismatch on ordinary words containing "ai"/"ae" (e.g. "MainCleanup.jsx"
+                reads as Illustrator) — this lets the user correct it without having
+                to rename the file and re-import. */}
+            <select
+              className="filter-select"
+              aria-label={`Target application for ${s.name}`}
+              value={s.targetApp}
+              onClick={e => e.stopPropagation()}
+              onMouseDown={e => e.stopPropagation()}
+              onChange={e => updateTargetApp(s.id, e.target.value as ScriptObj['targetApp'])}
+              style={{ fontSize: '0.75rem', padding: '4px 24px 4px 8px', width: 'auto' }}
+            >
+              <option value="Photoshop">Photoshop</option>
+              <option value="Illustrator">Illustrator</option>
+              <option value="After Effects">After Effects</option>
+            </select>
 
             <div style={{ marginTop: '24px', display: 'flex', gap: '8px' }} onClick={e => e.stopPropagation()}>
               <button className="btn-secondary" style={{ flex: 1, background: 'var(--accent-blue)', color: '#fff', border: 'none' }} onClick={(e) => handleRun(e, s)}>

@@ -7,7 +7,6 @@ import './App.css';
 import type { FontObj, ScriptObj, LicenseStatus } from './types';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
-import { Collections } from './components/Collections';
 import { SettingsModal } from './components/SettingsModal';
 import { AdobeScripts } from './components/AdobeScripts';
 import { Titlebar } from './components/Titlebar';
@@ -55,13 +54,6 @@ function App() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
-  const [collections] = useState([
-    { name: 'Favorites', count: 4 },
-    { name: 'Brand Assets', count: 12 },
-    { name: 'Client: Nike', count: 2 },
-    { name: 'Serifs & Display', count: 8 }
-  ]);
-
   const [fonts, setFonts] = useState<FontObj[]>([
     { name: 'Plus Jakarta Sans', style: 'Bold', active: true, fontFamily: 'Plus Jakarta Sans', isSystem: true },
     { name: 'Outfit', style: 'Regular', active: false, fontFamily: 'Outfit', isSystem: true },
@@ -521,8 +513,6 @@ function App() {
 
         {activeTab === 'Dashboard' ? (
           <Dashboard filteredFeatures={filteredDashboard} switchTab={switchTab} />
-        ) : activeTab === 'Smart Collections' ? (
-          <Collections collections={collections} />
         ) : activeTab === 'Adobe JSX Scripts' ? (
           <AdobeScripts scripts={scripts} setScripts={setScripts} />
         ) : activeTab === 'Font Management' ? (
