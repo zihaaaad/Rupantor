@@ -245,6 +245,27 @@ ipcMain.handle('uninstall-font', async (event, fontPath, fontName) => {
 import { exec, execFile } from 'child_process';
 import fs from 'fs';
 
+// Adobe ships a new After Effects folder per year (e.g. "Adobe After
+// Effects 2024", "...2025") with no stable path across versions — scan
+// for whatever's actually installed instead of hardcoding one year, so
+// this doesn't silently stop working the moment a new version ships.
+function findAfterEffectsPath(): string | null {
+  const adobeDir = 'C:\\Program Files\\Adobe';
+  try {
+    const candidates = fs.readdirSync(adobeDir)
+      .filter(name => /^Adobe After Effects/i.test(name))
+      .sort()
+      .reverse(); // newest year first
+    for (const name of candidates) {
+      const exePath = path.join(adobeDir, name, 'Support Files', 'afterfx.exe');
+      if (fs.existsSync(exePath)) return exePath;
+    }
+  } catch {
+    // Adobe dir missing entirely, or unreadable — treated the same as not found.
+  }
+  return null;
+}
+
 // Phase 3: Adobe Script Execution (Cross-Platform)
 ipcMain.handle('execute-script', async (event, scriptPath, targetApp) => {
   return new Promise((resolve) => {
@@ -275,7 +296,15 @@ ipcMain.handle('execute-script', async (event, scriptPath, targetApp) => {
     // 🪟 Windows 10/11 COM Object Execution
     else if (platform === 'win32') {
       if (targetApp === 'After Effects') {
-        return resolve({ success: false, message: `Windows execution for After Effects currently unsupported` });
+        const aePath = findAfterEffectsPath();
+        if (aePath) {
+          execFile(aePath, ['-r', scriptPath], (error) => {
+            if (error) resolve({ success: false, message: error.message });
+            else resolve({ success: true, message: `Executed in After Effects (Windows)` });
+          });
+          return;
+        }
+        return resolve({ success: false, message: 'Could not find an After Effects installation under C:\\Program Files\\Adobe.' });
       }
 
       let comName = 'Photoshop.Application';
@@ -320,7 +349,15 @@ ipcMain.handle('execute-script', async (event, scriptPath, targetApp) => {
 // into a string — a caller that doesn't check for an error string could
 // otherwise "successfully" read an error message as if it were real file
 // content, and if it later writes that back out, silently destroy the file.
-ipcMain.handle('read-file', (event, filePath) => fs.promises.readFile(filePath, 'utf8'));
+ipcMain.handle('read-file', async (event, filePath) => {
+  try {
+    const content = await fs.promises.readFile(filePath, 'utf8');
+    return { success: true, content };
+  } catch (e) {
+    console.error('File read error:', e);
+    return { success: false, message: 'Error reading file.' };
+  }
+});
 
 ipcMain.handle('write-file', async (event, filePath, content) => {
   try {
