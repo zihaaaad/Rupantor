@@ -1,7 +1,7 @@
 {
   "name": "zcentre",
   "private": true,
-  "version": "1.0.21",
+  "version": "1.0.24",
   "description": "Rupantor — desktop font manager and Adobe JSX automation hub for creative workflows.",
   "author": "Zihad Hasan",
   "type": "module",
@@ -39,7 +39,8 @@
     },
     "mac": {
       "target": [
-        "dmg"
+        "dmg",
+        "zip"
       ],
       "category": "public.app-category.productivity",
       "artifactName": "${productName}-v${version}-${os}-${arch}.${ext}",
