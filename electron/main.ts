@@ -322,13 +322,12 @@ ipcMain.handle('execute-script', async (event, scriptPath, targetApp) => {
         } catch {
           $app = New-Object -ComObject ${comName}
         }
-        
-        if ("${targetApp}" -eq "Illustrator") {
-            $app.DoJavaScriptFile($scriptPath)
-        } else {
-            $app.DoJavaScriptFile($scriptPath)
-        }
-        
+
+        # Photoshop and Illustrator's COM Application objects both expose
+        # DoJavaScriptFile — the app being automated is already selected via
+        # $comName above, so no per-app branching is needed here.
+        $app.DoJavaScriptFile($scriptPath)
+
         [System.Runtime.InteropServices.Marshal]::ReleaseComObject($app) | Out-Null
       `;
 

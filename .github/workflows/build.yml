@@ -9,8 +9,30 @@ permissions:
   contents: write
 
 jobs:
+  # Runs once, before the OS matrix, so exactly one draft release object
+  # exists for this tag. Without this, both matrix jobs independently ask
+  # "does a release for this tag exist yet?" via electron-builder's publish
+  # step at roughly the same moment, both get "no", and both create their
+  # own draft — leaving a stray duplicate release that has to be cleaned up
+  # by hand later. Idempotent so re-running a failed workflow on the same
+  # tag doesn't error out on an already-existing release.
+  create-release:
+    name: Create Draft Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create draft release if it doesn't already exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release ${{ github.ref_name }} already exists — reusing it."
+          else
+            gh release create "${{ github.ref_name }}" --draft --title "${{ github.ref_name }}" --generate-notes --repo "${{ github.repository }}"
+          fi
+
   build:
     name: Build & Publish on ${{ matrix.os }}
+    needs: create-release
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
