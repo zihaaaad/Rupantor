@@ -1,6 +1,6 @@
 import { app, BrowserWindow, ipcMain, protocol, net, session } from 'electron';
 import path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { initDb, getDbData, saveDbData } from './db.js';
 import { checkLicenseOnline, deactivateDevice, type RemoteLicenseDoc } from './firebaseLicense.js';
 import { randomUUID } from 'crypto';
@@ -171,8 +171,9 @@ app.whenReady().then(() => {
 
   // Custom protocol to load local fonts bypassing web security
   protocol.handle('local', (request) => {
-    const url = request.url.replace('local://', '');
-    return net.fetch('file://' + decodeURIComponent(url));
+    const urlPath = request.url.replace(/^local:\/\//, '');
+    const decodedPath = decodeURIComponent(urlPath);
+    return net.fetch(pathToFileURL(decodedPath).href);
   });
 
   createWindow();

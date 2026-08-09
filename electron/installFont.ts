@@ -54,7 +54,8 @@ export async function installFontToOS(fontPath: string, fontName: string): Promi
       const encodedRegistry = Buffer.from(registryName).toString('base64');
       const encodedFile = Buffer.from(fileName).toString('base64');
 
-      const ps1Path = path.join(os.tmpdir(), 'rupantor_install_font.ps1');
+      const uniqueId = `${Date.now()}_${Math.random().toString(36).substring(2)}`;
+      const ps1Path = path.join(os.tmpdir(), `rupantor_install_font_${uniqueId}.ps1`);
       const psScript = `
 $registryName = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${encodedRegistry}'))
 $fileName = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${encodedFile}'))
@@ -81,6 +82,7 @@ $WM_FONTCHANGE = 0x001D
       }
 
       exec(`powershell.exe -ExecutionPolicy Bypass -NoProfile -File "${ps1Path}"`, (error) => {
+        try { fs.unlinkSync(ps1Path); } catch {} // Cleanup temp script
         if (error) {
           console.error('PowerShell failed:', error);
           resolve(false);
@@ -136,7 +138,8 @@ export async function uninstallFontFromOS(fontPath: string, fontName: string): P
 
       const encodedRegistry = Buffer.from(registryName).toString('base64');
       
-      const ps1Path = path.join(os.tmpdir(), 'rupantor_uninstall_font.ps1');
+      const uniqueId = `${Date.now()}_${Math.random().toString(36).substring(2)}`;
+      const ps1Path = path.join(os.tmpdir(), `rupantor_uninstall_font_${uniqueId}.ps1`);
       const psScript = `
 $registryName = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('${encodedRegistry}'))
 $registryPath = "HKCU:\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Fonts"
@@ -166,6 +169,7 @@ $WM_FONTCHANGE = 0x001D
       }
 
       exec(`powershell.exe -ExecutionPolicy Bypass -NoProfile -File "${ps1Path}"`, (error) => {
+        try { fs.unlinkSync(ps1Path); } catch {} // Cleanup temp script
         if (error) {
           console.error('PowerShell uninstallation failed:', error);
           resolve(false);

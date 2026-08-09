@@ -93,7 +93,7 @@ function App() {
         allFonts.forEach(async (f: FontObj) => {
           if (f.path && !f.isSystem) {
             try {
-              const fontFace = new FontFace(f.fontFamily, `url("local://${encodeURI(f.path.replace(/\\/g, '/'))}")`);
+              const fontFace = new FontFace(f.fontFamily, `url("local://${f.path.split(/[\\/]/).map(encodeURIComponent).join('/')}")`);
               await fontFace.load();
               document.fonts.add(fontFace);
               f.fontFaceInstance = fontFace;
@@ -128,6 +128,9 @@ function App() {
             onClick: () => window.electronAPI.quitAndInstall()
           }
         });
+      });
+      window.electronAPI.onUpdateError((message: string) => {
+        toast.error(`Update failed: ${message}`);
       });
     }
   }, []);
@@ -311,7 +314,7 @@ function App() {
             if (fontPayload.path) {
               fontPayload.path = await window.electronAPI.copyToVault(fontPayload.path);
             }
-            const fontUrl = fontPayload.path ? `local://${encodeURI(fontPayload.path.replace(/\\/g, '/'))}` : URL.createObjectURL(fontPayload.file);
+            const fontUrl = fontPayload.path ? `local://${fontPayload.path.split(/[\\/]/).map(encodeURIComponent).join('/')}` : URL.createObjectURL(fontPayload.file);
             const fontFace = new FontFace(fontPayload.fontFamily, `url("${fontUrl}")`);
             fontFace.load().then(() => document.fonts.add(fontFace)).catch(console.error);
             
