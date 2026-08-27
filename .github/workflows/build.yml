@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*' # This triggers the workflow ONLY when you push a tag like "v1.0.0"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
@@ -19,6 +23,7 @@ jobs:
   create-release:
     name: Create Draft Release
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Create draft release if it doesn't already exist
         env:
@@ -34,6 +39,7 @@ jobs:
     name: Build & Publish on ${{ matrix.os }}
     needs: create-release
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     strategy:
       matrix:
         # Build simultaneously on Windows and macOS virtual machines
@@ -42,11 +48,14 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: 'npm'
 
       - name: Install Dependencies
         run: npm install
@@ -71,22 +80,6 @@ jobs:
       # latest-mac.yml / .blockmap files electron-updater needs to detect
       # updates. Uploading only the .exe/.dmg (as before) meant the
       # auto-updater could never actually find a new version.
-      # GH_TOKEN publishes to a draft release; both OS jobs append to the
-      # same draft for this tag, then the publish-release job below makes
-      # it public once both platforms have finished.
-      # CSC_LINK / CSC_KEY_PASSWORD are optional: electron-builder auto-signs
-      # if they're set and silently skips signing if they're not (unsigned
-      # builds still work, they just trigger SmartScreen/Gatekeeper warnings).
-      # To sign builds later: buy a code-signing cert, base64-encode the
-      # .pfx (Windows) / .p12 (macOS), and add CSC_LINK + CSC_KEY_PASSWORD
-      # as repo secrets — no workflow changes needed after that.
-      # electron-builder checks CSC_LINK with `!= null`, not truthiness — if the
-      # repo secret doesn't exist, `${{ secrets.CSC_LINK }}` evaluates to an
-      # empty string (not undefined), which electron-builder reads as "yes,
-      # sign with this", tries to resolve it as a certificate path, and fails
-      # ("<repo root> not a file"). Only forward the vars when the secret is
-      # genuinely set, so an unconfigured signing cert means "skip signing"
-      # (the intended/documented behavior) instead of a hard build failure.
       - name: Resolve optional code-signing secrets
         shell: bash
         run: |
@@ -108,6 +101,7 @@ jobs:
     name: Publish Release
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Un-draft the GitHub Release
         env:
