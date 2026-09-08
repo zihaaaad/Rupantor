@@ -36,6 +36,7 @@ any single bug below.
 | Automated testing | **Absent** — no test framework, no test files |
 | CI coverage | **Weak** — builds on tags only; nothing validates a PR |
 | Accessibility | **Fair** — good keyboard/ARIA work on cards; modals lack dialog semantics |
+| Dependency hygiene | **Needs work** — 4 known advisories, all with non-breaking fixes |
 | Open-source readiness | **Good** — MIT, clean README and site; missing contributor scaffolding |
 
 ### Findings by severity
@@ -43,7 +44,7 @@ any single bug below.
 | Severity | Count | IDs |
 | --- | --- | --- |
 | High | 2 | H-1, H-2 |
-| Medium | 7 | M-1 … M-7 |
+| Medium | 8 | M-1 … M-8 |
 | Low | 8 | L-1 … L-8 |
 | Informational | 4 | I-1 … I-4 |
 
@@ -359,6 +360,44 @@ this cheap.
 
 ---
 
+#### M-8 — Four dependency advisories, one of which ships to users
+
+**Location:** `package-lock.json`; confirmed with `npm audit` and `npm ls`
+
+| Package | Severity | Reaches | Path |
+| --- | --- | --- | --- |
+| `js-yaml` | High | **Shipped app** | `electron-updater@6.8.9 → js-yaml@4.3.0` |
+| `fast-uri` | High | Build only | `electron-builder → app-builder-lib → ajv` |
+| `nanoid` | High | Build only | `vite → postcss` |
+| `@xmldom/xmldom` | Moderate | Build only | `electron-builder → app-builder-lib → plist` |
+
+Three are development-only and cannot be reached by an installed copy of
+Rupantor. **`js-yaml` is the exception** — it arrives through
+`electron-updater`, a runtime dependency, and is what parses the `latest.yml`
+update manifest fetched from GitHub Releases.
+
+The advisory is quadratic CPU consumption while resolving `!!omap`
+(CVE-2026-59870, unpatched in 3.x/4.x). Exploiting it in Rupantor would require
+serving a hostile `latest.yml`, which means either compromising the project's
+own GitHub Releases or breaking TLS — so practical risk is low, and the impact
+ceiling is a hung update check rather than code execution. It should still be
+patched, because it is the one advisory a user's machine can actually touch.
+
+**Fix:** `npm audit fix` resolves all four. Verified by dry run: every fix is a
+transitive patch/minor bump with no breaking major upgrade and no change to a
+direct dependency. Follow with `npm run build` to confirm, and commit the
+updated lockfile.
+
+**Process gap behind it:** nothing watches for this. Dependabot alerts are
+enabled on the repository (GitHub reported these on push) but no automated
+update path exists.
+
+**Fix:** add `.github/dependabot.yml` for the `npm` ecosystem on a weekly
+schedule. Combined with the PR CI from M-4, dependency bumps then arrive as
+pre-validated pull requests.
+
+---
+
 ### LOW
 
 ---
@@ -554,6 +593,7 @@ are conventions contributors expect:
 | `SECURITY.md` (disclosure contact) | **Missing** — matters for an app that writes to the registry |
 | CI on pull requests | **Missing** (M-4) |
 | Tests a contributor can run | **Missing** (M-6) |
+| `dependabot.yml` | **Missing** (M-8) — alerts fire, nothing acts on them |
 
 ---
 
@@ -575,18 +615,19 @@ Phase 1 is roughly an afternoon and makes every later change safer.
 6. Add `isSystem` to the font identity key. *(M-3)*
 7. Surface DB write failures. *(L-2)*
 
-**Phase 3 — Harden the IPC surface**
-8. Extract the vault containment guard; apply to `read-file`, `write-file`, and
+**Phase 3 — Harden the IPC and dependency surface**
+8. `npm audit fix`, then add `dependabot.yml`. *(M-8 — non-breaking, verified)*
+9. Extract the vault containment guard; apply to `read-file`, `write-file`, and
    `local://`. *(H-2)*
-9. Allowlist `save-db-data` keys. *(L-6)*
-10. Switch PowerShell to `-EncodedCommand`. *(L-5)*
+10. Allowlist `save-db-data` keys. *(L-6)*
+11. Switch PowerShell to `-EncodedCommand`. *(L-5)*
 
 **Phase 4 — Sustainability**
-11. Vitest, starting with the four pure targets in M-6.
-12. `CONTRIBUTING.md`, `SECURITY.md`, issue templates.
-13. Decommission the Firebase project. *(I-3)*
-14. Dialog semantics and focus management. *(L-4)*
-15. Virtualize the font grid once measured. *(L-3)*
+12. Vitest, starting with the four pure targets in M-6.
+13. `CONTRIBUTING.md`, `SECURITY.md`, issue templates.
+14. Decommission the Firebase project. *(I-3)*
+15. Dialog semantics and focus management. *(L-4)*
+16. Virtualize the font grid once measured. *(L-3)*
 
 ---
 
@@ -616,7 +657,8 @@ dependency of any kind.
 ---
 
 *Findings were verified by reading the code at the cited lines and, where a claim
-was measurable (strict-mode cost, `electron/` type-check coverage, secret history),
-by running the check rather than estimating it. No fixes from Sections 3 or 6 have
+was measurable (strict-mode cost, `electron/` type-check coverage, secret history,
+dependency advisories and the safety of their fixes), by running the check rather
+than estimating it. No fixes from Sections 3 or 6 have
 been applied — this pass was scoped to analysis, with the single exception of the
 documentation correction noted in I-2.*
