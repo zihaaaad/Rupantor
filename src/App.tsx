@@ -10,6 +10,15 @@ import { Dashboard } from './components/Dashboard';
 import { SettingsModal } from './components/SettingsModal';
 import { AdobeScripts } from './components/AdobeScripts';
 import { Titlebar } from './components/Titlebar';
+import { useDialog } from './hooks/useDialog';
+
+// Identity for selection, React keys, and delete matching. This has to include
+// isSystem: importing Inter-Regular.ttf while Inter is already installed
+// system-wide is completely ordinary, and keying on name+style alone gave both
+// entries the same id - duplicate React keys, one click selecting both cards,
+// and deleting the custom one filtering the system one out of the list too.
+const fontId = (f: Pick<FontObj, 'name' | 'style' | 'isSystem'>) =>
+  `${f.isSystem ? 'sys' : 'usr'}:${f.name}:${f.style}`;
 
 function App() {
   const [activeTab, setActiveTab] = useState('Dashboard');
@@ -22,6 +31,7 @@ function App() {
   const [lastSelectedIdx, setLastSelectedIdx] = useState<number | null>(null);
   const [contextMenu, setContextMenu] = useState<{x: number, y: number} | null>(null);
   const [detailFont, setDetailFont] = useState<FontObj | null>(null);
+  const detailRef = useDialog<HTMLDivElement>(detailFont !== null);
   const [sortBy, setSortBy] = useState<'recent' | 'az'>('recent');
   const [filterBy, setFilterBy] = useState<'all' | 'system' | 'custom'>('all');
   
@@ -119,13 +129,17 @@ function App() {
         const { fontFaceInstance: _ffi, ...rest } = f;
         return rest;
       });
-      window.electronAPI.saveDbData('fonts', safeFonts);
+      window.electronAPI.saveDbData('fonts', safeFonts).then(res => {
+        if (!res.success) toast.error(`Could not save your font library: ${res.message ?? 'unknown error'}`);
+      });
     }
   }, [fonts]);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.electronAPI) {
-      window.electronAPI.saveDbData('scripts', scripts);
+      window.electronAPI.saveDbData('scripts', scripts).then(res => {
+        if (!res.success) toast.error(`Could not save your scripts: ${res.message ?? 'unknown error'}`);
+      });
     }
   }, [scripts]);
 
@@ -204,7 +218,7 @@ function App() {
         resolve({
           type: 'script',
           payload: {
-            id: `${file.name}-${Date.now()}`,
+            id: crypto.randomUUID(),
             name: file.name,
             path: nativePath,
             targetApp
@@ -274,7 +288,13 @@ function App() {
             dupCount++;
           } else {
             if (res.payload.path) {
-              res.payload.path = await window.electronAPI.copyToVault(res.payload.path);
+              const vaulted = await window.electronAPI.copyToVault(res.payload.path);
+              // A failed vault copy used to be reported as success with the
+              // original path, so the asset silently depended on a file the
+              // user thought they were free to delete. Import it either way,
+              // but say which one this is.
+              if (vaulted) res.payload.path = vaulted;
+              else toast.warning(`Could not copy "${res.payload.name}" into the vault - it will stop working if you move or delete the original file.`);
             }
             newScripts.push(res.payload);
             successCount++;
@@ -287,11 +307,22 @@ function App() {
             dupCount++;
           } else {
             if (fontPayload.path) {
-              fontPayload.path = await window.electronAPI.copyToVault(fontPayload.path);
+              const vaulted = await window.electronAPI.copyToVault(fontPayload.path);
+              if (vaulted) fontPayload.path = vaulted;
+              else toast.warning(`Could not copy "${fontPayload.name}" into the vault - it will stop working if you move or delete the original file.`);
             }
-            const fontUrl = fontPayload.path ? `local://${fontPayload.path.split(/[\\/]/).map(encodeURIComponent).join('/')}` : URL.createObjectURL(fontPayload.file);
+            // Only needed when the vault copy failed and there is no path to
+            // load from; revoked once the face is parsed so the blob is not
+            // pinned for the rest of the session.
+            const objectUrl = fontPayload.path ? null : URL.createObjectURL(fontPayload.file);
+            const fontUrl = fontPayload.path
+              ? `local://${fontPayload.path.split(/[\\/]/).map(encodeURIComponent).join('/')}`
+              : objectUrl!;
             const fontFace = new FontFace(fontPayload.fontFamily, `url("${fontUrl}")`);
-            fontFace.load().then(() => document.fonts.add(fontFace)).catch(console.error);
+            fontFace.load()
+              .then(() => document.fonts.add(fontFace))
+              .catch(console.error)
+              .finally(() => { if (objectUrl) URL.revokeObjectURL(objectUrl); });
             
             delete fontPayload.file;
             fontPayload.fontFaceInstance = fontFace;
@@ -341,7 +372,7 @@ function App() {
   // Multi-select Logic
   const handleFontClick = (e: React.MouseEvent, font: FontObj, idx: number) => {
     e.stopPropagation();
-    const id = `${font.name}-${font.style}`;
+    const id = fontId(font);
     const newSet = new Set(selectedIds);
     
     if (e.ctrlKey || e.metaKey) {
@@ -349,7 +380,7 @@ function App() {
     } else if (e.shiftKey && lastSelectedIdx !== null) {
       const start = Math.min(lastSelectedIdx, idx);
       const end = Math.max(lastSelectedIdx, idx);
-      filteredAndSortedFonts.slice(start, end + 1).forEach(f => newSet.add(`${f.name}-${f.style}`));
+      filteredAndSortedFonts.slice(start, end + 1).forEach(f => newSet.add(fontId(f)));
     } else {
       newSet.clear(); newSet.add(id);
     }
@@ -360,7 +391,7 @@ function App() {
 
   const handleContextMenu = (e: React.MouseEvent, font: FontObj, idx: number) => {
     e.preventDefault(); e.stopPropagation();
-    const id = `${font.name}-${font.style}`;
+    const id = fontId(font);
     if (!selectedIds.has(id)) {
       setSelectedIds(new Set([id]));
       setLastSelectedIdx(idx);
@@ -375,8 +406,24 @@ function App() {
     setContextMenu({ x, y });
   };
 
+  // One code path for "flip this font's OS install state". The grid toggle
+  // previously flipped local state unconditionally - a failed install still
+  // rendered as Active and was persisted that way - while the context-menu
+  // path flipped only on success. They now share this, so they cannot drift.
+  const setFontActive = useCallback(async (font: FontObj): Promise<boolean> => {
+    if (!font.path) return false;
+    const res = font.active
+      ? await window.electronAPI.uninstallFont(font.path, font.fontFamily, font.style)
+      : await window.electronAPI.installFont(font.path, font.fontFamily, font.style);
+
+    if (res.success) toast.success(`${font.active ? 'Uninstalled' : 'Installed'} ${font.name}`);
+    else toast.error(`Failed to ${font.active ? 'uninstall' : 'install'} ${font.name}`);
+
+    return res.success;
+  }, []);
+
   const deleteSelected = async () => {
-    const toDelete = fonts.filter(f => selectedIds.has(`${f.name}-${f.style}`));
+    const toDelete = fonts.filter(f => selectedIds.has(fontId(f)));
     const customToDelete = toDelete.filter(f => !f.isSystem);
     
     if (customToDelete.length === 0 && toDelete.length > 0) {
@@ -389,7 +436,7 @@ function App() {
     let vaultFailures = 0;
     for (const f of customToDelete) {
       if (f.active && f.path) {
-        await window.electronAPI.uninstallFont(f.path, f.fontFamily);
+        await window.electronAPI.uninstallFont(f.path, f.fontFamily, f.style);
       }
       if (f.fontFaceInstance) document.fonts.delete(f.fontFaceInstance);
       if (f.path) {
@@ -398,7 +445,8 @@ function App() {
       }
     }
 
-    setFonts(prev => prev.filter(f => !customToDelete.some(cd => cd.name === f.name && cd.style === f.style)));
+    const deletedIds = new Set(customToDelete.map(fontId));
+    setFonts(prev => prev.filter(f => !deletedIds.has(fontId(f))));
     setSelectedIds(new Set());
     setContextMenu(null);
     // Removed from the library either way — but a failed vault delete leaves
@@ -412,35 +460,18 @@ function App() {
   };
 
   const toggleSelectedActive = async () => {
-    const toToggle = fonts.filter(f => selectedIds.has(`${f.name}-${f.style}`));
+    const toToggle = fonts.filter(f => selectedIds.has(fontId(f)));
     const successToggles = new Set<string>();
-    
+
     for (const f of toToggle) {
-      if (f.path) {
-        if (!f.active) {
-          const res = await window.electronAPI.installFont(f.path, f.fontFamily);
-          if (res.success) {
-            toast.success(`Installed ${f.name} to OS`);
-            successToggles.add(`${f.name}-${f.style}`);
-          } else toast.error(`Failed to install ${f.name}`);
-        } else {
-          const res = await window.electronAPI.uninstallFont(f.path, f.fontFamily);
-          if (res.success) {
-            toast.success(`Uninstalled ${f.name} from OS`);
-            successToggles.add(`${f.name}-${f.style}`);
-          } else toast.error(`Failed to uninstall ${f.name}`);
-        }
-      }
+      if (await setFontActive(f)) successToggles.add(fontId(f));
     }
 
-    setFonts(prev => prev.map(f => {
-      if (successToggles.has(`${f.name}-${f.style}`)) return { ...f, active: !f.active };
-      return f;
-    }));
+    setFonts(prev => prev.map(f => successToggles.has(fontId(f)) ? { ...f, active: !f.active } : f));
     setContextMenu(null);
   };
 
-  const getFontById = (id: string) => fonts.find(f => `${f.name}-${f.style}` === id);
+  const getFontById = (id: string) => fonts.find(f => fontId(f) === id);
 
   const filteredDashboard = useMemo(() => dashboardFeatures.filter(f =>
     f.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -517,7 +548,7 @@ function App() {
                 </div>
               ) : (
                 filteredAndSortedFonts.map((font, idx) => {
-                  const id = `${font.name}-${font.style}`;
+                  const id = fontId(font);
                   const isSelected = selectedIds.has(id);
                   return (
                     <div
@@ -554,18 +585,9 @@ function App() {
                         <span style={{ fontSize: '0.8rem', color: font.active ? '#fff' : 'var(--text-muted)' }}>{font.active ? 'Active' : 'Inactive'}</span>
                         <label className="switch">
                           <input type="checkbox" checked={font.active} onChange={async () => {
-                            if (font.path) {
-                              if (!font.active) {
-                                const res = await window.electronAPI.installFont(font.path, font.fontFamily);
-                                if (res.success) toast.success(`Installed ${font.name} to OS`);
-                                else toast.error(`Failed to install ${font.name}`);
-                              } else {
-                                const res = await window.electronAPI.uninstallFont(font.path, font.fontFamily);
-                                if (res.success) toast.success(`Uninstalled ${font.name} from OS`);
-                                else toast.error(`Failed to uninstall ${font.name}`);
-                              }
+                            if (await setFontActive(font)) {
+                              setFonts(prev => prev.map(f => fontId(f) === id ? { ...f, active: !f.active } : f));
                             }
-                            setFonts(prev => prev.map(f => f === font ? { ...f, active: !f.active } : f));
                           }} />
                           <span className="slider"></span>
                         </label>
@@ -600,10 +622,18 @@ function App() {
 
       {detailFont && (
         <div className="modal-overlay" onClick={() => setDetailFont(null)}>
-          <div className="modal-content large" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="modal-content large"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="font-detail-title"
+            tabIndex={-1}
+            ref={detailRef}
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="modal-header" style={{ borderBottom: 'none' }}>
               <div>
-                <h2 className="modal-title">{detailFont.name}</h2>
+                <h2 className="modal-title" id="font-detail-title">{detailFont.name}</h2>
                 <p className="modal-subtitle">{detailFont.style} • {detailFont.isSystem ? 'System Font' : 'Custom Upload'}</p>
               </div>
               <button className="modal-close" aria-label="Close" onClick={() => setDetailFont(null)}><X size={20} /></button>

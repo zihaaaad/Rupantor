@@ -31,8 +31,12 @@ export function getDbData() {
 export function saveDbData(key: string, value: any) {
   dbCache = { ...getDbData(), [key]: value };
   const snapshot = dbCache;
-  writeQueue = writeQueue.then(() =>
+  const write = writeQueue.then(() =>
     fs.promises.writeFile(getDbPath(), JSON.stringify(snapshot, null, 2), 'utf8')
-  ).catch(error => console.error('Failed to save DB data:', error));
-  return writeQueue;
+  );
+  // The queue itself must survive a failed write — otherwise one rejection
+  // poisons the chain and every later save is rejected without being tried.
+  // The caller still receives the original rejection via `write`.
+  writeQueue = write.catch(() => {});
+  return write;
 }

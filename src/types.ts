@@ -19,14 +19,14 @@ declare global {
   interface Window {
     electronAPI: {
       pathForFile: (file: File) => string;
-      installFont: (fontPath: string, fontName: string) => Promise<{success: boolean, message: string}>;
-      uninstallFont: (fontPath: string, fontName: string) => Promise<{success: boolean, message: string}>;
+      installFont: (fontPath: string, fontName: string, fontStyle: string) => Promise<{success: boolean, message: string}>;
+      uninstallFont: (fontPath: string, fontName: string, fontStyle: string) => Promise<{success: boolean, message: string}>;
       getDbData: () => Promise<any>;
-      saveDbData: (key: string, value: any) => void;
+      saveDbData: (key: string, value: any) => Promise<{success: boolean, message?: string}>;
       executeScript: (scriptPath: string, targetApp: string) => Promise<{success: boolean, message: string}>;
       readFile: (filePath: string) => Promise<{success: boolean, content?: string, message?: string}>;
       writeFile: (filePath: string, content: string) => Promise<{success: boolean}>;
-      copyToVault: (filePath: string) => Promise<string>;
+      copyToVault: (filePath: string) => Promise<string | null>;
       deleteFromVault: (filePath: string) => Promise<{success: boolean, message?: string}>;
       getSystemFonts: () => Promise<string[]>;
       onUpdateAvailable: (callback: (info: any) => void) => void;

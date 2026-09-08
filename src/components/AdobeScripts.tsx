@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { FileCode, Play, X, UploadCloud } from 'lucide-react';
 import { toast } from 'sonner';
 import type { ScriptObj } from '../types';
+import { useDialog } from '../hooks/useDialog';
 
 interface AdobeScriptsProps {
   scripts: ScriptObj[];
@@ -10,6 +11,7 @@ interface AdobeScriptsProps {
 
 export function AdobeScripts({ scripts, setScripts }: AdobeScriptsProps) {
   const [viewingScript, setViewingScript] = useState<ScriptObj | null>(null);
+  const editorRef = useDialog<HTMLDivElement>(viewingScript !== null);
   const [codeContent, setCodeContent] = useState('');
   const [readFailed, setReadFailed] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -81,7 +83,9 @@ export function AdobeScripts({ scripts, setScripts }: AdobeScriptsProps) {
 
         let vaultPath = nativePath;
         if (nativePath) {
-          vaultPath = await window.electronAPI.copyToVault(nativePath);
+          const vaulted = await window.electronAPI.copyToVault(nativePath);
+          if (vaulted) vaultPath = vaulted;
+          else toast.warning(`Could not copy "${file.name}" into the vault - it will stop working if you move or delete the original file.`);
         }
 
         newScripts.push({
@@ -160,9 +164,17 @@ export function AdobeScripts({ scripts, setScripts }: AdobeScriptsProps) {
 
       {viewingScript && (
         <div className="modal-overlay" onClick={() => setViewingScript(null)}>
-          <div className="modal-content large" onClick={e => e.stopPropagation()}>
+          <div
+            className="modal-content large"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="script-editor-title"
+            tabIndex={-1}
+            ref={editorRef}
+            onClick={e => e.stopPropagation()}
+          >
             <div className="modal-header">
-              <div><h2 className="modal-title">{viewingScript.name}</h2></div>
+              <div><h2 className="modal-title" id="script-editor-title">{viewingScript.name}</h2></div>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <button className="btn-secondary" style={{ padding: '6px 12px' }} disabled={readFailed} onClick={async () => {
                   toast.loading('Saving script...', { id: 'save' });

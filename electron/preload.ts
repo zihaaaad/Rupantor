@@ -2,10 +2,10 @@ import { contextBridge, ipcRenderer, webUtils } from 'electron';
 
 contextBridge.exposeInMainWorld('electronAPI', {
   pathForFile: (file: File) => webUtils.getPathForFile(file),
-  installFont: (fontPath: string, fontName: string) => ipcRenderer.invoke('install-font', fontPath, fontName),
-  uninstallFont: (fontPath: string, fontName: string) => ipcRenderer.invoke('uninstall-font', fontPath, fontName),
+  installFont: (fontPath: string, fontName: string, fontStyle: string) => ipcRenderer.invoke('install-font', fontPath, fontName, fontStyle),
+  uninstallFont: (fontPath: string, fontName: string, fontStyle: string) => ipcRenderer.invoke('uninstall-font', fontPath, fontName, fontStyle),
   getDbData: () => ipcRenderer.invoke('get-db-data'),
-  saveDbData: (key: string, value: any) => ipcRenderer.send('save-db-data', key, value),
+  saveDbData: (key: string, value: any) => ipcRenderer.invoke('save-db-data', key, value),
   executeScript: (scriptPath: string, targetApp: string) => ipcRenderer.invoke('execute-script', scriptPath, targetApp),
   readFile: (filePath: string) => ipcRenderer.invoke('read-file', filePath),
   writeFile: (filePath: string, content: string) => ipcRenderer.invoke('write-file', filePath, content),
