@@ -1,53 +1,9 @@
-import { app, BrowserWindow, ipcMain, protocol, net, session } from 'electron';
+import { app, BrowserWindow, ipcMain, protocol, net, session, shell } from 'electron';
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { initDb, getDbData, saveDbData } from './db.js';
-import { checkLicenseOnline, deactivateDevice, type RemoteLicenseDoc } from './firebaseLicense.js';
-import { randomUUID } from 'crypto';
 import fontList from 'font-list';
 import { autoUpdater } from 'electron-updater';
-
-// How long a device may keep running on the last known-good Firestore
-// answer without being able to reach the internet at all.
-const LICENSE_CACHE_GRACE_MS = 14 * 24 * 60 * 60 * 1000;
-// Re-check cadence while the app is running, mirroring the update-check
-// interval — so a revoked/refunded license takes effect without requiring
-// a restart, not just at the next launch.
-const LICENSE_RECHECK_MS = 4 * 60 * 60 * 1000;
-
-function getDeviceId(): string {
-  const existing = getDbData().deviceId;
-  if (existing) return existing;
-  const id = randomUUID();
-  saveDbData('deviceId', id);
-  return id;
-}
-
-function toLicensePayload(data: RemoteLicenseDoc) {
-  return { name: data.name, email: data.email, plan: data.plan, issuedAt: Date.now(), expiresAt: data.expiresAt };
-}
-
-async function refreshLicenseStatus(): Promise<{ valid: boolean; reason?: string; payload?: ReturnType<typeof toLicensePayload> }> {
-  const licenseKey = getDbData().licenseKey;
-  if (!licenseKey) return { valid: false, reason: 'No license activated.' };
-
-  const deviceId = getDeviceId();
-  try {
-    const result = await checkLicenseOnline(licenseKey, deviceId);
-    if (result.ok) {
-      await saveDbData('licenseCache', { data: result.data, cachedAt: Date.now() });
-      return { valid: true, payload: toLicensePayload(result.data) };
-    }
-    return { valid: false, reason: result.reason };
-  } catch (err) {
-    console.error('License check failed (offline, or Firebase misconfigured):', err);
-    const cache = getDbData().licenseCache; // read fresh, not a pre-await snapshot
-    if (cache && Date.now() - cache.cachedAt < LICENSE_CACHE_GRACE_MS) {
-      return { valid: true, payload: toLicensePayload(cache.data) };
-    }
-    return { valid: false, reason: 'Could not reach the license server, and the offline grace period has expired. Please reconnect to the internet.' };
-  }
-}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -91,6 +47,22 @@ function createWindow() {
     win.loadFile(path.join(RENDERER_DIST, 'index.html'));
   }
 
+  // The UI links out to the project site and repo. Without this, Electron
+  // would open them in a bare in-app BrowserWindow; hand them to the user's
+  // real browser instead, and never let the app window itself navigate away
+  // from the bundled renderer.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https:\/\//.test(url)) shell.openExternal(url);
+    return { action: 'deny' };
+  });
+
+  win.webContents.on('will-navigate', (event, url) => {
+    if (url !== win?.webContents.getURL()) {
+      event.preventDefault();
+      if (/^https:\/\//.test(url)) shell.openExternal(url);
+    }
+  });
+
   win.webContents.on('did-finish-load', () => {
     checkForUpdates();
   });
@@ -104,16 +76,6 @@ function checkForUpdates() {
 // Re-check periodically so a release pushed while the app is already
 // running (not just at launch) still reaches the user.
 setInterval(checkForUpdates, 4 * 60 * 60 * 1000); // every 4 hours
-
-// Same idea for licensing: if it's revoked/refunded while the app is
-// already open, this catches it without waiting for a restart.
-setInterval(async () => {
-  if (!getDbData().licenseKey) return;
-  const status = await refreshLicenseStatus();
-  if (!status.valid) {
-    win?.webContents.send('license-invalidated', status.reason);
-  }
-}, LICENSE_RECHECK_MS);
 
 // Setup autoUpdater listeners
 autoUpdater.on('update-available', (info) => {
@@ -180,50 +142,12 @@ app.whenReady().then(() => {
 });
 
 // Database IPC. Only exposes the app-data keys the renderer actually
-// consumes here — licenseKey/licenseCache/deviceId are internal to the
-// licensing flow (which has its own dedicated get-license-status channel)
-// and have no reason to round-trip through the renderer.
+// consumes, rather than handing the whole store over wholesale.
 ipcMain.handle('get-db-data', () => {
   const { fonts, collections, scripts } = getDbData();
   return { fonts, collections, scripts };
 });
 ipcMain.on('save-db-data', (event, key, value) => saveDbData(key, value));
-
-// Licensing: Firestore is the source of truth (enables revocation, real
-// server-side expiry, and device-limit enforcement — see firestore.rules
-// and electron/firebaseLicense.ts). The last known-good answer is cached
-// locally so the app still works offline for LICENSE_CACHE_GRACE_MS.
-ipcMain.handle('get-license-status', () => refreshLicenseStatus());
-
-ipcMain.handle('activate-license', async (event, licenseKey: string) => {
-  const deviceId = getDeviceId();
-  try {
-    const result = await checkLicenseOnline(licenseKey, deviceId);
-    if (result.ok) {
-      await saveDbData('licenseKey', licenseKey);
-      await saveDbData('licenseCache', { data: result.data, cachedAt: Date.now() });
-      return { valid: true, payload: toLicensePayload(result.data) };
-    }
-    return { valid: false, reason: result.reason };
-  } catch (err) {
-    console.error('License activation failed:', err);
-    return { valid: false, reason: 'Could not reach the license server. Check your internet connection and try again.' };
-  }
-});
-
-// Lets a customer free up their own device slot (e.g. before wiping a PC)
-// without needing you to manually edit Firestore for every case.
-ipcMain.handle('deactivate-device', async () => {
-  const licenseKey = getDbData().licenseKey;
-  if (!licenseKey) return { ok: false, reason: 'No license activated.' };
-
-  const result = await deactivateDevice(licenseKey, getDeviceId());
-  if (result.ok) {
-    await saveDbData('licenseKey', null);
-    await saveDbData('licenseCache', null);
-  }
-  return result;
-});
 
 import { installFontToOS, uninstallFontFromOS } from './installFont.js';
 

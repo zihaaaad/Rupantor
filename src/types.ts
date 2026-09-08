@@ -15,22 +15,6 @@ export interface ScriptObj {
   targetApp: 'Photoshop' | 'After Effects' | 'Illustrator';
 }
 
-export type LicensePlan = 'monthly' | 'yearly' | 'lifetime';
-
-export interface LicensePayload {
-  name: string;
-  email: string;
-  plan: LicensePlan;
-  issuedAt: number;
-  expiresAt: number | null;
-}
-
-export interface LicenseStatus {
-  valid: boolean;
-  reason?: string;
-  payload?: LicensePayload;
-}
-
 declare global {
   interface Window {
     electronAPI: {
@@ -53,10 +37,6 @@ declare global {
       quitAndInstall: () => Promise<void>;
       getAppVersion: () => Promise<string>;
       checkForUpdates: () => Promise<void>;
-      getLicenseStatus: () => Promise<LicenseStatus>;
-      activateLicense: (key: string) => Promise<LicenseStatus>;
-      deactivateDevice: () => Promise<{ ok: boolean; reason?: string }>;
-      onLicenseInvalidated: (callback: (reason: string) => void) => () => void;
     }
   }
 }

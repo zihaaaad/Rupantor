@@ -10,15 +10,15 @@
 - Windows: COM bridge via PowerShell. macOS: AppleScript/`osascript`.
 - Built-in script editor with save-in-place.
 
-## Licensing
-- One-time purchase, yearly or lifetime plans.
-- Device-limited activation with self-service deactivation (Settings → Deactivate This Device) if you need to move to a new machine.
-- Works offline for a grace period if you lose connectivity mid-session.
+## Free and open source
+- Every feature is unlocked for everyone — no licence key, no account, no trial, no paid tier.
+- MIT licensed: use it commercially, modify it, redistribute it.
+- Fully offline. Nothing but the GitHub update check ever leaves your machine.
 
 ## Auto-Updates
 - Checks for updates on launch and periodically while running; installs on your confirmation.
 
 ## Known limitations
 - Windows and macOS only (no Linux build).
-- After Effects automation is currently macOS-only.
+- macOS builds target Apple Silicon; Intel Macs run them under Rosetta.
 - Installers are not yet code-signed — Windows SmartScreen / macOS Gatekeeper may show an "unrecognized developer" warning on first run.

@@ -4,39 +4,14 @@ import opentype from 'opentype.js';
 import { Toaster, toast } from 'sonner';
 import './App.css';
 
-import type { FontObj, ScriptObj, LicenseStatus } from './types';
+import type { FontObj, ScriptObj } from './types';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './components/Dashboard';
 import { SettingsModal } from './components/SettingsModal';
 import { AdobeScripts } from './components/AdobeScripts';
 import { Titlebar } from './components/Titlebar';
-import { ActivateLicense } from './components/ActivateLicense';
 
 function App() {
-  // null = still checking against Firestore (falls back to a locally
-  // cached result within the offline grace period if unreachable).
-  const [licenseStatus, setLicenseStatus] = useState<LicenseStatus | null>(null);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.electronAPI?.getLicenseStatus) {
-      window.electronAPI.getLicenseStatus()
-        .then(setLicenseStatus)
-        .catch(() => setLicenseStatus({ valid: false, reason: 'Could not verify license.' }));
-    } else {
-      setLicenseStatus({ valid: true });
-    }
-  }, []);
-
-  // Backstop: if main.ts's periodic re-check (every 4h) finds the license
-  // was revoked/refunded/expired while the app is already open, drop back
-  // to the activation gate instead of waiting for a restart.
-  useEffect(() => {
-    if (typeof window === 'undefined' || !window.electronAPI?.onLicenseInvalidated) return;
-    return window.electronAPI.onLicenseInvalidated((reason) => {
-      setLicenseStatus({ valid: false, reason });
-    });
-  }, []);
-
   const [activeTab, setActiveTab] = useState('Dashboard');
   const [previewText, setPreviewText] = useState('Rupantor');
   const [searchQuery, setSearchQuery] = useState('');
@@ -472,25 +447,6 @@ function App() {
     f.desc.toLowerCase().includes(searchQuery.toLowerCase())
   ), [dashboardFeatures, searchQuery]);
 
-  if (licenseStatus === null) {
-    return <div className="app-wrapper"><Titlebar /></div>;
-  }
-
-  if (!licenseStatus.valid) {
-    return (
-      <div className="app-wrapper">
-        <Titlebar />
-        <div className="app-container" style={{ alignItems: 'center', justifyContent: 'center' }}>
-          <Toaster theme="dark" position="bottom-right" />
-          <ActivateLicense
-            reason={licenseStatus.reason}
-            onActivated={setLicenseStatus}
-          />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="app-wrapper">
       <Titlebar />
@@ -640,7 +596,7 @@ function App() {
         )}
       </main>
 
-      {isSettingsOpen && <SettingsModal setIsSettingsOpen={setIsSettingsOpen} previewText={previewText} setPreviewText={setPreviewText} onDeviceDeactivated={() => setLicenseStatus({ valid: false, reason: 'Device deactivated.' })} />}
+      {isSettingsOpen && <SettingsModal setIsSettingsOpen={setIsSettingsOpen} previewText={previewText} setPreviewText={setPreviewText} />}
 
       {detailFont && (
         <div className="modal-overlay" onClick={() => setDetailFont(null)}>

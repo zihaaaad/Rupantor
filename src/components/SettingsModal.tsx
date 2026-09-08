@@ -1,33 +1,23 @@
 import { useEffect, useState } from 'react';
-import { X, RefreshCw, MonitorX } from 'lucide-react';
+import { X, RefreshCw, Heart, Code2 } from 'lucide-react';
 import { toast } from 'sonner';
-import type { LicenseStatus, LicensePlan } from '../types';
 
-const PLAN_LABELS: Record<LicensePlan, string> = {
-  monthly: 'Monthly',
-  yearly: 'Yearly',
-  lifetime: 'Lifetime',
-};
+const SITE_URL = 'https://zihaaaad.github.io/Rupantor';
+const REPO_URL = 'https://github.com/zihaaaad/Rupantor';
 
 interface SettingsModalProps {
   setIsSettingsOpen: (val: boolean) => void;
   previewText: string;
   setPreviewText: (val: string) => void;
-  onDeviceDeactivated: () => void;
 }
 
-export function SettingsModal({ setIsSettingsOpen, previewText, setPreviewText, onDeviceDeactivated }: SettingsModalProps) {
+export function SettingsModal({ setIsSettingsOpen, previewText, setPreviewText }: SettingsModalProps) {
   const [version, setVersion] = useState('');
   const [checking, setChecking] = useState(false);
-  const [license, setLicense] = useState<LicenseStatus | null>(null);
-  const [deactivating, setDeactivating] = useState(false);
 
   useEffect(() => {
     if (typeof window !== 'undefined' && window.electronAPI?.getAppVersion) {
       window.electronAPI.getAppVersion().then(setVersion).catch(() => {});
-    }
-    if (typeof window !== 'undefined' && window.electronAPI?.getLicenseStatus) {
-      window.electronAPI.getLicenseStatus().then(setLicense).catch(() => {});
     }
   }, []);
 
@@ -52,22 +42,6 @@ export function SettingsModal({ setIsSettingsOpen, previewText, setPreviewText, 
     } catch {
       setChecking(false);
       toast.error('Update check is unavailable in this build.', { id: 'manual-update-check' });
-    }
-  };
-
-  const handleDeactivateDevice = async () => {
-    if (!confirm("Deactivate this device? You'll need to re-enter your license key to use Rupantor here again.")) return;
-    setDeactivating(true);
-    try {
-      const result = await window.electronAPI.deactivateDevice();
-      if (result.ok) {
-        toast.success('Device deactivated. Free to activate elsewhere.');
-        onDeviceDeactivated();
-      } else {
-        toast.error(result.reason || 'Could not deactivate this device.');
-      }
-    } finally {
-      setDeactivating(false);
     }
   };
 
@@ -100,28 +74,22 @@ export function SettingsModal({ setIsSettingsOpen, previewText, setPreviewText, 
             </button>
           </div>
 
-          {license && (
-            <div className="modal-row">
-              <div>
-                <span className="modal-label">License</span>
-                <div className="modal-value" style={{ marginTop: '4px' }}>
-                  {license.valid && license.payload
-                    ? `${PLAN_LABELS[license.payload.plan]} — ${license.payload.name}`
-                    : 'Not activated'}
-                </div>
-                {license.valid && license.payload?.expiresAt && (
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                    Renews by {new Date(license.payload.expiresAt).toLocaleDateString()}
-                  </div>
-                )}
+          <div className="modal-row">
+            <div>
+              <span className="modal-label">Rupantor is free and open source</span>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '4px', maxWidth: '30ch' }}>
+                Every feature, forever, at no cost. Donations keep it maintained.
               </div>
-              {license.valid && (
-                <button className="btn-secondary" onClick={handleDeactivateDevice} disabled={deactivating}>
-                  <MonitorX size={14} /> Deactivate This Device
-                </button>
-              )}
             </div>
-          )}
+            <div style={{ display: 'flex', gap: '8px' }}>
+              <a className="btn-secondary" href={`${REPO_URL}`} target="_blank" rel="noreferrer">
+                <Code2 size={14} /> Source
+              </a>
+              <a className="btn-secondary" href={`${SITE_URL}/#support`} target="_blank" rel="noreferrer">
+                <Heart size={14} /> Support
+              </a>
+            </div>
+          </div>
         </div>
         <div className="modal-footer"><button className="btn-secondary" onClick={() => setIsSettingsOpen(false)}>Done</button></div>
       </div>

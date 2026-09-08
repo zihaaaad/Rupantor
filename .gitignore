@@ -13,7 +13,6 @@ dist-electron/
 release/
 dist-ssr
 *.local
-.firebase/
 
 # Editor directories and files
 .vscode/*
@@ -27,8 +26,7 @@ dist-ssr
 *.sw?
 
 # env files (kept as general hygiene for any future actual secrets —
-# nothing currently in this repo needs them; the Firebase web config is
-# not a secret by design and is intentionally hardcoded in source)
+# nothing in this repo needs them today)
 .env
 .env.*
 .env.local

@@ -286,6 +286,12 @@ body {
   background: rgba(255,255,255,0.08);
   border-color: rgba(255,255,255,0.2);
 }
+/* Same control rendered as a link (e.g. the Source / Support links in
+   Preferences) — anchors don't inherit the button reset. */
+a.btn-secondary {
+  text-decoration: none;
+  white-space: nowrap;
+}
 
 .btn-danger {
   background: linear-gradient(180deg, #E11D48 0%, #BE123C 100%);

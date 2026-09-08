@@ -13,16 +13,17 @@ Welcome to the official launch promotion kit for **Rupantor**! Since the automat
 Meet **Rupantor** — The ultra-fast, native desktop asset and font management layer built for modern design workflows. 🚀
 
 **Body:**
-Creative professionals waste hours managing assets and manual font installations. Rupantor changes that. By bypassing standard sandbox limitations, it gives you direct control over your system and Adobe creative suite with lightning-fast speeds.
+Creative professionals waste hours managing assets and manual font installations. Rupantor changes that — and it's completely free and open source. By bypassing standard sandbox limitations, it gives you direct control over your system and Adobe creative suite with lightning-fast speeds.
 
 ⚡ **Why Rupantor?**
 * **Instant Native Font Installations:** Directly interfaces with the Windows registry and macOS CoreText — no app restarts needed.
 * **Adobe Automation Bridge:** Store and run ExtendScript (.jsx) directly against Photoshop, Illustrator, and After Effects.
 * **Lightweight Native Performance:** Built as a native desktop app, not a wrapped web page — fast to launch, light on memory.
+* **Free and Open Source:** MIT licensed. Every feature, at no cost, forever — audit it or fork it on GitHub.
 
 Designed to be invisible, fast, and secure.
 
-👉 Get a license and download on GitHub!
+👉 Free, open source (MIT), and available to download on GitHub!
 
 #DesignOps #CreativeTech #WorkflowAutomation #Typography #AssetManagement #DesktopApp
 
@@ -38,7 +39,7 @@ Introducing **Rupantor** — a lightning-fast native desktop asset layer for Win
 ⚡ Native, not a wrapped webpage
 🎨 Native font installation, no restarts
 🔌 Direct Adobe automation (Photoshop, Illustrator, After Effects)
-🔒 Licensed, one-time purchase
+🆓 Free forever + fully open source (MIT)
 
 Take control of your typography and Adobe workflow.
 
@@ -66,4 +67,4 @@ When you design your visual post graphic (using tools like Canva, Figma, Midjour
   - Bullet points highlighting:
     - **Performance:** `Native desktop speed`
     - **Compatibility:** `Windows & macOS`
-    - **Licensing:** `One-time purchase, yearly or lifetime`
+    - **Price:** `Free forever — open source (MIT)`

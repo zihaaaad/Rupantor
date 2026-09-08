@@ -12,12 +12,12 @@ let writeQueue: Promise<void> = Promise.resolve();
 export function initDb() {
   const dbPath = getDbPath();
   if (!fs.existsSync(dbPath)) {
-    fs.writeFileSync(dbPath, JSON.stringify({ fonts: [], collections: [], scripts: [], licenseKey: null, licenseCache: null, deviceId: null }), 'utf8');
+    fs.writeFileSync(dbPath, JSON.stringify({ fonts: [], collections: [], scripts: [] }), 'utf8');
   }
   try {
     dbCache = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
   } catch {
-    dbCache = { fonts: [], collections: [], scripts: [], licenseKey: null, licenseCache: null, deviceId: null };
+    dbCache = { fonts: [], collections: [], scripts: [] };
   }
 }
 

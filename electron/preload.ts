@@ -28,12 +28,4 @@ contextBridge.exposeInMainWorld('electronAPI', {
   quitAndInstall: () => ipcRenderer.invoke('quit-and-install'),
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
-  getLicenseStatus: () => ipcRenderer.invoke('get-license-status'),
-  activateLicense: (key: string) => ipcRenderer.invoke('activate-license', key),
-  deactivateDevice: () => ipcRenderer.invoke('deactivate-device'),
-  onLicenseInvalidated: (callback: (reason: string) => void) => {
-    const listener = (_event: unknown, reason: string) => callback(reason);
-    ipcRenderer.on('license-invalidated', listener);
-    return () => ipcRenderer.removeListener('license-invalidated', listener);
-  },
 });
