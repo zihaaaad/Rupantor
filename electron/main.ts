@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, protocol, net, session, shell } from 'elec
 import path from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { initDb, getDbData, saveDbData } from './db.js';
+import { containedPath, fontReadRoots } from './pathGuard.js';
 import fontList from 'font-list';
 import { autoUpdater } from 'electron-updater';
 
@@ -14,7 +15,11 @@ export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL'];
 export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron');
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist');
 
-process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST;
+// Held in a const rather than read back from process.env at the point of
+// use: TypeScript's narrowing of process.env.X doesn't survive into a
+// function body, and path.join needs a definite string.
+const VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST;
+process.env.VITE_PUBLIC = VITE_PUBLIC;
 
 let win: BrowserWindow | null;
 
@@ -26,7 +31,7 @@ function createWindow() {
   win = new BrowserWindow({
     width: 1200,
     height: 800,
-    icon: path.join(process.env.VITE_PUBLIC, 'icon.png'),
+    icon: path.join(VITE_PUBLIC, 'icon.png'),
     titleBarStyle: 'hidden', // Make it look premium
     titleBarOverlay: {
       color: '#050505',
@@ -131,15 +136,26 @@ app.whenReady().then(() => {
     });
   }
 
-  // Custom protocol to load local fonts bypassing web security
+  // Custom protocol to load local fonts bypassing web security. Restricted to
+  // the vault and the OS font directories - it previously served any file on
+  // disk to anything running in the renderer.
   protocol.handle('local', (request) => {
     const urlPath = request.url.replace(/^local:\/\//, '');
     const decodedPath = decodeURIComponent(urlPath);
-    return net.fetch(pathToFileURL(decodedPath).href);
+    const safePath = containedPath(decodedPath, fontReadRoots(getVaultDir()));
+    if (!safePath) {
+      console.error('Blocked local:// request outside the font directories:', decodedPath);
+      return new Response('Forbidden', { status: 403 });
+    }
+    return net.fetch(pathToFileURL(safePath).href);
   });
 
   createWindow();
 });
+
+function getVaultDir(): string {
+  return path.join(app.getPath('userData'), 'Vault');
+}
 
 // Database IPC. Only exposes the app-data keys the renderer actually
 // consumes, rather than handing the whole store over wholesale.
@@ -147,20 +163,37 @@ ipcMain.handle('get-db-data', () => {
   const { fonts, collections, scripts } = getDbData();
   return { fonts, collections, scripts };
 });
-ipcMain.on('save-db-data', (event, key, value) => saveDbData(key, value));
+// Mirrors the read side's narrowing: the renderer may only write the keys it
+// is allowed to read back, rather than any key it names.
+const SAVABLE_KEYS = new Set(['fonts', 'collections', 'scripts']);
+
+// handle, not on: a fire-and-forget write meant a full disk or a locked file
+// was logged to a console nobody watches while the user believed their
+// library was saved.
+ipcMain.handle('save-db-data', async (_event, key: string, value: unknown) => {
+  if (!SAVABLE_KEYS.has(key)) {
+    console.error('Rejected save for unknown DB key:', key);
+    return { success: false, message: `Unknown database key: ${key}` };
+  }
+  try {
+    await saveDbData(key, value);
+    return { success: true };
+  } catch (e) {
+    console.error('Failed to save DB data:', e);
+    return { success: false, message: (e as Error).message };
+  }
+});
 
 import { installFontToOS, uninstallFontFromOS } from './installFont.js';
 
 // IPC Handlers for Phase 2 (Installing Fonts)
-ipcMain.handle('install-font', async (event, fontPath, fontName) => {
-  console.log('Requested to install font:', fontName, fontPath);
-  const success = await installFontToOS(fontPath, fontName);
+ipcMain.handle('install-font', async (_event, fontPath, fontName, fontStyle) => {
+  const success = await installFontToOS(fontPath, fontName, fontStyle);
   return { success, message: success ? 'Installed natively!' : 'Failed to install' };
 });
 
-ipcMain.handle('uninstall-font', async (event, fontPath, fontName) => {
-  console.log('Requested to uninstall font:', fontName, fontPath);
-  const success = await uninstallFontFromOS(fontPath, fontName);
+ipcMain.handle('uninstall-font', async (_event, fontPath, fontName, fontStyle) => {
+  const success = await uninstallFontFromOS(fontPath, fontName, fontStyle);
   return { success, message: success ? 'Uninstalled natively!' : 'Failed to uninstall' };
 });
 
@@ -192,7 +225,7 @@ function findAfterEffectsPath(): string | null {
 }
 
 // Phase 3: Adobe Script Execution (Cross-Platform)
-ipcMain.handle('execute-script', async (event, scriptPath, targetApp) => {
+ipcMain.handle('execute-script', async (_event, scriptPath, targetApp) => {
   return new Promise((resolve) => {
     const platform = process.platform;
 
@@ -273,9 +306,11 @@ ipcMain.handle('execute-script', async (event, scriptPath, targetApp) => {
 // into a string — a caller that doesn't check for an error string could
 // otherwise "successfully" read an error message as if it were real file
 // content, and if it later writes that back out, silently destroy the file.
-ipcMain.handle('read-file', async (event, filePath) => {
+ipcMain.handle('read-file', async (_event, filePath) => {
+  const safePath = containedPath(filePath, [getVaultDir()]);
+  if (!safePath) return { success: false, message: 'Refused: file is outside the vault.' };
   try {
-    const content = await fs.promises.readFile(filePath, 'utf8');
+    const content = await fs.promises.readFile(safePath, 'utf8');
     return { success: true, content };
   } catch (e) {
     console.error('File read error:', e);
@@ -283,9 +318,14 @@ ipcMain.handle('read-file', async (event, filePath) => {
   }
 });
 
-ipcMain.handle('write-file', async (event, filePath, content) => {
+ipcMain.handle('write-file', async (_event, filePath, content) => {
+  const safePath = containedPath(filePath, [getVaultDir()]);
+  if (!safePath) {
+    console.error('Blocked write outside the vault:', filePath);
+    return { success: false };
+  }
   try {
-    await fs.promises.writeFile(filePath, content, 'utf8');
+    await fs.promises.writeFile(safePath, content, 'utf8');
     return { success: true };
   } catch (e) {
     console.error('File write error:', e);
@@ -293,32 +333,32 @@ ipcMain.handle('write-file', async (event, filePath, content) => {
   }
 });
 
-ipcMain.handle('copy-to-vault', async (event, originalPath) => {
+// Returns null rather than falling back to the original path. Handing back an
+// unvaulted path made the app record an asset as vaulted when it was not,
+// which silently voids the vault's one promise - that deleting your original
+// download will not break your library - and later confuses delete-from-vault.
+ipcMain.handle('copy-to-vault', async (_event, originalPath) => {
   try {
-    const vaultDir = path.join(app.getPath('userData'), 'Vault');
+    const vaultDir = getVaultDir();
     if (!fs.existsSync(vaultDir)) fs.mkdirSync(vaultDir, { recursive: true });
-    
+
     const fileName = path.basename(originalPath);
-    // Add timestamp to prevent overwriting files with the same name
-    const safeName = Date.now() + '_' + fileName;
-    const destPath = path.join(vaultDir, safeName);
-    
+    // Timestamp prefix so same-named files from different folders coexist.
+    const destPath = path.join(vaultDir, Date.now() + '_' + fileName);
+
     await fs.promises.copyFile(originalPath, destPath);
     return destPath;
   } catch (e) {
     console.error('Vault copy error:', e);
-    return originalPath; // fallback to original if it fails
+    return null;
   }
 });
 
-ipcMain.handle('delete-from-vault', async (event, filePath) => {
+ipcMain.handle('delete-from-vault', async (_event, filePath) => {
   try {
-    const vaultDir = path.join(app.getPath('userData'), 'Vault');
-    // Resolve + compare with a trailing separator so a sibling directory
-    // that merely starts with "Vault" (e.g. "VaultOld") can't pass this check.
-    const resolvedPath = path.resolve(filePath);
-    if (resolvedPath.startsWith(vaultDir + path.sep) && fs.existsSync(resolvedPath)) {
-      await fs.promises.unlink(resolvedPath);
+    const safePath = containedPath(filePath, [getVaultDir()]);
+    if (safePath && fs.existsSync(safePath)) {
+      await fs.promises.unlink(safePath);
       return { success: true };
     }
     return { success: false, message: 'File not in vault or does not exist' };

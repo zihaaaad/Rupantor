@@ -57,8 +57,11 @@ jobs:
           node-version: 20
           cache: 'npm'
 
+      # ci, not install: the pushed tag must build from exactly what the
+      # lockfile pins, or the published artifact isn't reproducible from
+      # the commit it claims to come from.
       - name: Install Dependencies
-        run: npm install
+        run: npm ci
 
       # package.json's version is otherwise just whatever a developer last
       # typed by hand — nothing enforced it matched the tag actually being

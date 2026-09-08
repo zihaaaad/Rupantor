@@ -11,7 +11,9 @@
     "build": "tsc -b && vite build && electron-builder --publish never",
     "release": "tsc -b && vite build && electron-builder --publish always",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "build": {
     "appId": "com.rupantor.app",
@@ -76,6 +78,7 @@
     "typescript": "~6.0.2",
     "vite": "^8.1.1",
     "vite-plugin-electron": "^1.1.0",
-    "vite-plugin-electron-renderer": "^1.0.0"
+    "vite-plugin-electron-renderer": "^1.0.0",
+    "vitest": "^5.0.0"
   }
 }
