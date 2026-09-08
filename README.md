@@ -76,9 +76,11 @@ git clone https://github.com/zihaaaad/Rupantor.git
 cd Rupantor
 npm install
 npm run dev      # Vite + Electron in dev mode
+npm test         # vitest
+npm run lint     # oxlint
+npx tsc -b       # type-check src/, electron/, and vite.config.ts
 npm run build    # type-check, build, and package installers (no publish)
 npm run release  # same, but publishes to GitHub Releases (used by CI)
-npm run lint     # oxlint
 ```
 
 ## Release pipeline
@@ -95,15 +97,21 @@ installer plus the `latest.yml` / `latest-mac.yml` / `.blockmap` metadata
 job un-drafts the release, which is what makes already-installed copies pick up
 the update.
 
+CI runs lint, type-check, tests, and build on every pull request.
+
 ## Audit
 
-A full system audit — architecture, trust boundaries, security posture, and a
-prioritized list of findings — lives in [AUDIT.md](AUDIT.md).
+[AUDIT.md](AUDIT.md) is a full system audit — architecture, trust boundaries,
+security posture, and every finding with its exact location. 16 of its 18
+findings are fixed; the remaining two are deferred with stated reasoning.
 
 ## Contributing
 
 Issues and pull requests are welcome — bug reports, fixes, features, docs, or
-translations. There is no CLA and no gatekeeping.
+translations. There is no CLA and no gatekeeping. See
+[CONTRIBUTING.md](CONTRIBUTING.md) for setup and the few non-negotiable rules
+around IPC and shell safety, and [SECURITY.md](SECURITY.md) to report a
+vulnerability privately.
 
 ## Support the project
 

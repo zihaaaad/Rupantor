@@ -1,0 +1,64 @@
+name: Bug report
+description: Something in Rupantor doesn't work the way it should
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. For anything security-related,
+        please use [SECURITY.md](../blob/master/SECURITY.md) instead of a public issue.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what actually happened.
+      placeholder: I toggled a font on and it said Installed, but the font never appeared in Photoshop.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Rupantor version
+      description: Preferences → Version
+      placeholder: v1.0.24
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options:
+        - Windows 11
+        - Windows 10
+        - macOS (Apple Silicon)
+        - macOS (Intel)
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: font-or-script
+    attributes:
+      label: Font or script involved
+      description: If it only happens with a specific file, naming it helps a lot.
+      placeholder: Nikosh Regular (.ttf)
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Screenshots, console output, or context that might matter.

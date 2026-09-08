@@ -6,6 +6,10 @@
 **Scope:** Full repository — Electron main process, preload bridge, React renderer,
 native OS integration, build/release pipeline, project site, and documentation.
 
+> **Status: 16 of 18 findings are fixed** as of the remediation pass that followed
+> this audit. Each finding below carries its own status line. Section 6 records
+> what was done and what deliberately was not.
+
 ---
 
 ## 1. Executive summary
@@ -26,18 +30,20 @@ any single bug below.
 
 ### Health at a glance
 
-| Area | Verdict |
-| --- | --- |
-| Electron security model | **Strong** — isolation, CSP, no remote content, external links sandboxed |
-| Command injection defence | **Strong** — base64 encoding on every dynamic PowerShell/AppleScript value |
-| IPC surface | **Needs work** — three handlers accept arbitrary filesystem paths |
-| Correctness | **Fair** — 3 confirmed user-visible bugs, all in the font install/state path |
-| Type safety | **Weak** — `strict` off; `electron/` not type-checked at all |
-| Automated testing | **Absent** — no test framework, no test files |
-| CI coverage | **Weak** — builds on tags only; nothing validates a PR |
-| Accessibility | **Fair** — good keyboard/ARIA work on cards; modals lack dialog semantics |
-| Dependency hygiene | **Needs work** — 4 known advisories, all with non-breaking fixes |
-| Open-source readiness | **Good** — MIT, clean README and site; missing contributor scaffolding |
+The "after" column reflects the remediation pass that followed this audit.
+
+| Area | At audit | Now |
+| --- | --- | --- |
+| Electron security model | **Strong** | **Strong** |
+| Command injection defence | **Strong** | **Strong** — plus `-EncodedCommand`, no temp scripts |
+| IPC surface | **Needs work** — 3 handlers took arbitrary paths | **Strong** — all contained |
+| Correctness | **Fair** — 3 user-visible bugs | **Good** — all 3 fixed, 2 with tests |
+| Type safety | **Weak** — `strict` off, `electron/` unchecked | **Strong** — strict everywhere, all 3 projects checked |
+| Automated testing | **Absent** | **Started** — 17 tests on main-process logic |
+| CI coverage | **Weak** — tags only | **Good** — lint, types, tests, build on every PR |
+| Accessibility | **Fair** — modals lacked dialog semantics | **Good** — roles, labels, focus trap and restore |
+| Dependency hygiene | **Needs work** — 4 advisories | **Clean** — 0 advisories, Dependabot enabled |
+| Open-source readiness | **Good** — missing contributor scaffolding | **Strong** — CONTRIBUTING, SECURITY, templates |
 
 ### Findings by severity
 
@@ -48,8 +54,11 @@ any single bug below.
 | Low | 8 | L-1 … L-8 |
 | Informational | 4 | I-1 … I-4 |
 
-No critical findings. Nothing in this report is being actively exploited or is
-losing user data today.
+No critical findings. Nothing in this report was being actively exploited or
+losing user data.
+
+**Remediation status:** 16 fixed, 2 deliberately deferred (L-3 and I-1 — see
+Section 6 for the reasoning).
 
 ---
 
@@ -127,6 +136,8 @@ Each finding lists severity, location, the defect, why it matters, and a fix.
 
 #### H-1 — `electron/` is excluded from type-checking entirely
 
+**Status: FIXED.** `tsconfig.electron.json` added and referenced from `tsconfig.json`, so `tsc -b` now covers the main process. Fixing it immediately surfaced 9 errors — the `VITE_PUBLIC` one below plus 8 unused-parameter warnings — all resolved.
+
 **Location:** `tsconfig.app.json:34` (`"include": ["src"]`),
 `tsconfig.node.json:23` (`"include": ["vite.config.ts"]`)
 
@@ -160,6 +171,8 @@ so `tsc -b` picks it up. Then fix the one error it reports (assert or guard
 ---
 
 #### H-2 — Three IPC handlers accept arbitrary filesystem paths
+
+**Status: FIXED.** `containedPath()` extracted in `main.ts` and applied to `local://`, `read-file`, and `write-file`; `delete-from-vault` now uses the shared helper too. `local://` is restricted to the vault plus OS font directories, and the two file handlers to the vault alone.
 
 **Location:** `electron/main.ts:135` (`local://`), `:276` (`read-file`),
 `:286` (`write-file`)
@@ -208,6 +221,8 @@ written and tested in one place; it needs to be extracted and reused.
 
 #### M-1 — Font styles of the same family collide in the Windows registry
 
+**Status: FIXED.** The registry value name now includes the subfamily, matching how Windows names its own entries. Uninstall removes the legacy family-only key only when its data still points at the same file, so a mixed old/new install cannot lose an entry. Covered by 11 tests, verified to fail against the old behaviour.
+
 **Location:** `electron/installFont.ts:37` and `:125`; callers at
 `src/App.tsx:421`, `:427`, `:559`, `:563`
 
@@ -239,6 +254,8 @@ thought: fonts installed by earlier versions carry the old family-only key.
 
 #### M-2 — The grid toggle reports success even when the OS install fails
 
+**Status: FIXED.** Both paths now share one `setFontActive` helper that returns success, and callers flip state only on `true`.
+
 **Location:** `src/App.tsx:568`
 
 ```ts
@@ -265,6 +282,8 @@ helper so the two paths cannot drift again.
 
 #### M-3 — Font identity key collides between custom and system fonts
 
+**Status: FIXED.** A single `fontId()` helper keys on `isSystem` as well as name and style, and is used for React keys, selection, and delete matching.
+
 **Location:** `src/App.tsx:525` (`key={id}`), `:401` (delete filter), and every
 `selectedIds` operation
 
@@ -286,6 +305,8 @@ produces two entries with the **same identity**.
 ---
 
 #### M-4 — No CI validates a pull request
+
+**Status: FIXED.** `.github/workflows/ci.yml` runs lint, type-check, tests, and build on every pull request and every push to `master`.
 
 **Location:** `.github/workflows/build.yml:3-6`
 
@@ -312,6 +333,8 @@ minutes per run.
 
 #### M-5 — `npm install` in CI defeats the lockfile
 
+**Status: FIXED.** Both workflows use `npm ci`.
+
 **Location:** `.github/workflows/build.yml:64`
 
 `npm install` may resolve newer versions than `package-lock.json` pins, so the
@@ -324,6 +347,8 @@ show for it.
 ---
 
 #### M-6 — No automated tests of any kind
+
+**Status: FIXED (started).** Vitest added with 17 tests across the two highest-value pure targets: registry naming (M-1) and database write serialization (L-2). Renderer tests remain future work.
 
 **Location:** repository-wide; no test runner in `package.json`
 
@@ -343,6 +368,8 @@ with those four. This is the single highest-leverage item in the report.
 
 #### M-7 — `strict` is disabled, and enabling it is free
 
+**Status: FIXED.** `strict: true` on all three projects. As measured, `src/` needed no changes.
+
 **Location:** `tsconfig.app.json`, `tsconfig.node.json` — neither sets `strict`
 
 TypeScript runs in non-strict mode: no `strictNullChecks`, no
@@ -361,6 +388,8 @@ this cheap.
 ---
 
 #### M-8 — Four dependency advisories, one of which ships to users
+
+**Status: FIXED.** `npm audit` reports 0 vulnerabilities. `.github/dependabot.yml` added for npm (weekly, minor/patch grouped) and GitHub Actions (monthly).
 
 **Location:** `package-lock.json`; confirmed with `npm audit` and `npm ls`
 
@@ -403,6 +432,8 @@ pre-validated pull requests.
 ---
 
 #### L-1 — `copyToVault` silently falls back to the original path
+
+**Status: FIXED.** Returns `null` on failure. Callers still import the asset — losing the user's import would be worse — but warn that it depends on the original file.
 **Location:** `electron/main.ts:310`
 
 On copy failure the handler returns `originalPath`, so the app records a path
@@ -417,6 +448,8 @@ silently.
 ---
 
 #### L-2 — Database write failures are invisible to the renderer
+
+**Status: FIXED.** Promoted to `ipcMain.handle`; `saveDbData` propagates rejections while keeping the write queue alive, and the renderer toasts on failure. Two tests cover it.
 **Location:** `electron/main.ts:150`, `electron/db.ts:31-35`
 
 `save-db-data` is a fire-and-forget `ipcMain.on`. A failed write (disk full,
@@ -429,6 +462,10 @@ failure.
 ---
 
 #### L-3 — No list virtualization with hundreds of fonts
+
+**Status: DEFERRED.** This is a real cost but an unmeasured one, and the audit's
+own advice was to measure first. Virtualizing changes scroll, selection, and
+shift-range behaviour, so it is not worth doing speculatively.
 **Location:** `src/App.tsx:522-580`
 
 Every font in `filteredAndSortedFonts` renders a card with a live preview in its
@@ -442,6 +479,8 @@ paginate. Worth measuring before building.
 ---
 
 #### L-4 — Modals lack dialog semantics and focus management
+
+**Status: FIXED.** A `useDialog` hook adds focus-in, a Tab trap, and focus restore; all three modals carry `role="dialog"`, `aria-modal`, and `aria-labelledby`.
 **Location:** `SettingsModal.tsx:49`, `AdobeScripts.tsx:162`, `App.tsx:604`
 
 The overlays are plain `div`s. No `role="dialog"`, no `aria-modal="true"`, no
@@ -455,6 +494,8 @@ respectable accessibility story.
 ---
 
 #### L-5 — Temp PowerShell script is a TOCTOU window
+
+**Status: FIXED.** Scripts run via `-EncodedCommand`; no file is written to disk, so the window is gone. Inner base64 encoding of dynamic values is retained — `-EncodedCommand` protects the transport, not the interpolation.
 **Location:** `electron/installFont.ts:57-88`, `:141-172`
 
 The installer writes a `.ps1` into `os.tmpdir()` then executes it by path with
@@ -472,6 +513,8 @@ and skip the temp file entirely.
 ---
 
 #### L-6 — `save-db-data` accepts arbitrary keys from the renderer
+
+**Status: FIXED.** Writes are allowlisted to the same keys the read side exposes.
 **Location:** `electron/main.ts:150`
 
 `saveDbData(key, value)` writes any key the renderer names into the DB JSON. The
@@ -485,6 +528,8 @@ unnecessary asymmetry.
 ---
 
 #### L-7 — Script duplicate-detection and IDs are filename-based
+
+**Status: PARTIALLY FIXED.** IDs now use `crypto.randomUUID()`. Duplicate detection is still filename-based — changing it alters import behaviour users may rely on, so it is left as a deliberate product decision.
 **Location:** `src/App.tsx:271`, `AdobeScripts.tsx:73`, `:88`
 
 Duplicates are detected by filename alone, so two genuinely different
@@ -498,6 +543,8 @@ to eliminate).
 ---
 
 #### L-8 — Object URL is never revoked
+
+**Status: FIXED.** Revoked in a `finally` once the face is parsed.
 **Location:** `src/App.tsx:290`
 
 `URL.createObjectURL(fontPayload.file)` is used as the fallback when no vault
@@ -514,6 +561,15 @@ a leak.
 #### I-1 — Package name does not match the product
 `package.json:2` is `"name": "zcentre"` while the product, `appId`, repo, and
 site are all Rupantor. Harmless to the build; confusing in a public repo.
+
+**Status: DEFERRED — deliberately.** Electron derives `app.getName()` from
+`package.json`, and `app.getPath('userData')` derives from that in turn. In
+packaged builds electron-builder's `productName` ("Rupantor") wins, but the
+exact precedence is worth confirming on a real install before touching it:
+if it resolves differently than expected, renaming moves every user's
+`userData` directory and their font library and scripts vanish from the app's
+point of view. A cosmetic naming inconsistency is not worth that risk without
+a migration path and a test install. Left for a deliberate decision.
 
 #### I-2 — Documentation claimed a limitation the code does not have
 `release_notes.md` stated "After Effects automation is currently macOS-only",
@@ -587,47 +643,66 @@ are conventions contributors expect:
 | `LICENSE` (MIT) | Present |
 | README with build instructions | Present |
 | Project site with no paywall | Present |
-| `CONTRIBUTING.md` | **Missing** |
-| `CODE_OF_CONDUCT.md` | **Missing** |
-| Issue / PR templates | **Missing** |
-| `SECURITY.md` (disclosure contact) | **Missing** — matters for an app that writes to the registry |
-| CI on pull requests | **Missing** (M-4) |
-| Tests a contributor can run | **Missing** (M-6) |
-| `dependabot.yml` | **Missing** (M-8) — alerts fire, nothing acts on them |
+| `CONTRIBUTING.md` | Present |
+| `CODE_OF_CONDUCT.md` | **Missing** — the one remaining gap |
+| Issue / PR templates | Present |
+| `SECURITY.md` (disclosure contact) | Present |
+| CI on pull requests | Present (M-4) |
+| Tests a contributor can run | Present (M-6) — `npm test` |
+| `dependabot.yml` | Present (M-8) |
 
 ---
 
-## 6. Prioritized remediation plan
+## 6. Remediation — what was done
 
-Ordered by leverage — what most reduces the chance of a bad release per hour
-spent.
+All of Phases 1 to 3 and most of Phase 4 were completed in the pass following
+this audit. Everything below was verified with `npx tsc -b`, `npm run lint`,
+`npm test`, and `npx vite build` before commit.
 
-**Phase 1 — Close the verification gap (highest leverage)**
-1. Add `tsconfig.electron.json` to the build graph; fix the one error. *(H-1)*
-2. Turn on `strict` in all three configs. *(M-7 — measured at zero cost for `src/`)*
-3. Add `ci.yml` running lint + typecheck + build on PRs, with `npm ci`. *(M-4, M-5)*
+**Phase 1 — close the verification gap** *(done)*
+1. `tsconfig.electron.json` added to the build graph; the 9 errors it exposed fixed. *(H-1)*
+2. `strict: true` on all three projects. *(M-7)*
+3. `ci.yml` runs lint, type-check, tests, and build on every PR, using `npm ci`. *(M-4, M-5)*
 
-Phase 1 is roughly an afternoon and makes every later change safer.
+**Phase 2 — fix what users actually hit** *(done)*
+4. Registry name includes the subfamily, with a safe legacy-key migration. *(M-1)*
+5. One shared `setFontActive`; state flips only on confirmed success. *(M-2)*
+6. `fontId()` keys on `isSystem` as well as name and style. *(M-3)*
+7. DB write failures propagate and surface as a toast. *(L-2)*
 
-**Phase 2 — Fix what users actually hit**
-4. Registry name must include the subfamily, with a migration path. *(M-1)*
-5. Toggle state only on confirmed success; unify the two paths. *(M-2)*
-6. Add `isSystem` to the font identity key. *(M-3)*
-7. Surface DB write failures. *(L-2)*
+**Phase 3 — harden the IPC and dependency surface** *(done)*
+8. `npm audit fix` — 0 advisories remain — plus `dependabot.yml`. *(M-8)*
+9. `containedPath()` extracted and applied to all four path-taking handlers. *(H-2)*
+10. `save-db-data` keys allowlisted. *(L-6)*
+11. PowerShell runs via `-EncodedCommand`; no temp script on disk. *(L-5)*
+12. `copyToVault` returns null instead of a misleading fallback path. *(L-1)*
 
-**Phase 3 — Harden the IPC and dependency surface**
-8. `npm audit fix`, then add `dependabot.yml`. *(M-8 — non-breaking, verified)*
-9. Extract the vault containment guard; apply to `read-file`, `write-file`, and
-   `local://`. *(H-2)*
-10. Allowlist `save-db-data` keys. *(L-6)*
-11. Switch PowerShell to `-EncodedCommand`. *(L-5)*
+**Phase 4 — sustainability** *(mostly done)*
+13. Vitest with 17 tests on registry naming and DB write serialization. *(M-6)*
+14. `CONTRIBUTING.md`, `SECURITY.md`, issue and PR templates. *(added)*
+15. `useDialog` hook — focus trap, focus restore, dialog roles on all 3 modals. *(L-4)*
+16. `crypto.randomUUID()` for script IDs; object URL revoked. *(L-7 partial, L-8)*
 
-**Phase 4 — Sustainability**
-12. Vitest, starting with the four pure targets in M-6.
-13. `CONTRIBUTING.md`, `SECURITY.md`, issue templates.
-14. Decommission the Firebase project. *(I-3)*
-15. Dialog semantics and focus management. *(L-4)*
-16. Virtualize the font grid once measured. *(L-3)*
+### Deliberately not done
+
+**L-3 (virtualize the font grid)** — a real cost, but unmeasured, and
+virtualizing changes scroll, selection, and shift-range behaviour. The audit
+said measure first; that still stands.
+
+**I-1 (rename the package from `zcentre`)** — `app.getPath('userData')`
+derives from the package name, so getting the precedence wrong against
+electron-builder's `productName` would strand every existing user's library.
+Not worth it for a cosmetic fix without a test install and a migration path.
+
+**L-7 (filename-based duplicate detection)** — the ID collision is fixed, but
+changing what counts as a duplicate alters import behaviour users may rely on.
+That is a product decision, not a bug fix.
+
+**I-3 (decommission Firebase)** — requires console access; only the project
+owner can do it.
+
+**`CODE_OF_CONDUCT.md`** — worth adding, but it should be a choice the
+maintainer makes rather than a file dropped in by a tool.
 
 ---
 
@@ -659,6 +734,8 @@ dependency of any kind.
 *Findings were verified by reading the code at the cited lines and, where a claim
 was measurable (strict-mode cost, `electron/` type-check coverage, secret history,
 dependency advisories and the safety of their fixes), by running the check rather
-than estimating it. No fixes from Sections 3 or 6 have
-been applied — this pass was scoped to analysis, with the single exception of the
-documentation correction noted in I-2.*
+than estimating it.*
+
+*The audit was written first and the fixes applied second, against the findings as
+written. Section 6 records what was done; the four deferrals there are stated with
+their reasoning rather than quietly dropped.*

@@ -1,0 +1,24 @@
+name: Feature request
+description: Suggest something Rupantor should do
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would this solve?
+      description: Describe the workflow friction, not just the feature. It usually leads to a better solution.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like it to do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: How do you handle it today?
+      description: Another tool, a manual workaround, or not at all.

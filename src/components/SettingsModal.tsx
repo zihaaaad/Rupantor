@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { X, RefreshCw, Heart, Code2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useDialog } from '../hooks/useDialog';
 
 const SITE_URL = 'https://zihaaaad.github.io/Rupantor';
 const REPO_URL = 'https://github.com/zihaaaad/Rupantor';
@@ -12,6 +13,7 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ setIsSettingsOpen, previewText, setPreviewText }: SettingsModalProps) {
+  const dialogRef = useDialog<HTMLDivElement>();
   const [version, setVersion] = useState('');
   const [checking, setChecking] = useState(false);
 
@@ -47,9 +49,17 @@ export function SettingsModal({ setIsSettingsOpen, previewText, setPreviewText }
 
   return (
     <div className="modal-overlay" onClick={() => setIsSettingsOpen(false)}>
-      <div className="modal-content" onClick={e => e.stopPropagation()}>
+      <div
+        className="modal-content"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="settings-title"
+        tabIndex={-1}
+        ref={dialogRef}
+        onClick={e => e.stopPropagation()}
+      >
         <div className="modal-header">
-          <div><h2 className="modal-title">Preferences</h2><p className="modal-subtitle">Configure your workspace</p></div>
+          <div><h2 className="modal-title" id="settings-title">Preferences</h2><p className="modal-subtitle">Configure your workspace</p></div>
           <button className="modal-close" aria-label="Close" onClick={() => setIsSettingsOpen(false)}><X size={20} /></button>
         </div>
         <div className="modal-body">

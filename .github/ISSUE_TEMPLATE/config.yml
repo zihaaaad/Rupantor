@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security vulnerability
+    url: https://github.com/zihaaaad/Rupantor/security/advisories/new
+    about: Please report security issues privately, not as a public issue.
+  - name: Known issues and open findings
+    url: https://github.com/zihaaaad/Rupantor/blob/master/AUDIT.md
+    about: The system audit lists known findings with severity and locations.
