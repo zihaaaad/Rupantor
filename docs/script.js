@@ -2,8 +2,11 @@
 
 const REPO_OWNER = 'zihaaaad';
 const REPO_NAME = 'Rupantor';
-const RELEASES_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/latest`;
 const API_URL = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/latest`;
+
+const FALLBACK_VERSION = 'v1.0.24';
+const FALLBACK_WIN_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${FALLBACK_VERSION}/Rupantor-${FALLBACK_VERSION}-win-x64-Setup.exe`;
+const FALLBACK_MAC_URL = `https://github.com/${REPO_OWNER}/${REPO_NAME}/releases/download/${FALLBACK_VERSION}/Rupantor-${FALLBACK_VERSION}-mac-arm64.dmg`;
 
 // Lucide replaces each <i data-lucide> with an <svg>, so it has to run before
 // anything measures or styles those icons. Both this file and the CDN script
@@ -15,8 +18,12 @@ lucide.createIcons();
 
 const winBtn = document.getElementById('win-download');
 const macBtn = document.getElementById('mac-download');
+const winBtnBottom = document.getElementById('win-download-bottom');
+const macBtnBottom = document.getElementById('mac-download-bottom');
 const winMeta = document.getElementById('win-meta');
 const macMeta = document.getElementById('mac-meta');
+const winMetaBottom = document.getElementById('win-meta-bottom');
+const macMetaBottom = document.getElementById('mac-meta-bottom');
 const versionBadge = document.getElementById('version-badge');
 
 async function loadLatestRelease() {
@@ -39,34 +46,31 @@ async function loadLatestRelease() {
         }
 
         if (winSetupUrl) {
-            winBtn.href = winSetupUrl;
-            winMeta.textContent = `${version} · Windows 10/11 · Free`;
-        } else {
-            winMeta.textContent = 'See all builds on GitHub';
+            if (winBtn) winBtn.href = winSetupUrl;
+            if (winBtnBottom) winBtnBottom.href = winSetupUrl;
+            if (winMeta) winMeta.textContent = `${version} · Windows 10/11 · Free`;
+            if (winMetaBottom) winMetaBottom.textContent = `${version} · Free`;
         }
 
         if (macDmgUrl) {
-            macBtn.href = macDmgUrl;
+            if (macBtn) macBtn.href = macDmgUrl;
+            if (macBtnBottom) macBtnBottom.href = macDmgUrl;
             // Only an arm64 .dmg is published today (see build.yml). Don't
             // advertise "Universal" until an x64 build actually ships, or
             // Intel users get a binary that needs Rosetta without warning.
-            macMeta.textContent = `${version} · Apple Silicon · Free`;
-        } else {
-            macMeta.textContent = 'See all builds on GitHub';
+            if (macMeta) macMeta.textContent = `${version} · Apple Silicon · Free`;
+            if (macMetaBottom) macMetaBottom.textContent = `Apple Silicon · Free`;
         }
 
         if (versionBadge && version) {
             versionBadge.textContent = `${version} out now · Free & MIT licensed`;
         }
     } catch (error) {
-        console.error('Could not load the latest release:', error);
-        // The buttons already point at the releases page in the markup, so
-        // a failure here degrades to "go pick a build yourself" rather than
-        // leaving a dead control.
-        winMeta.textContent = 'Browse releases on GitHub';
-        macMeta.textContent = 'Browse releases on GitHub';
-        winBtn.href = RELEASES_URL;
-        macBtn.href = RELEASES_URL;
+        console.warn('Using default direct download links (GitHub API unreached):', error);
+        if (winBtn && !winBtn.href.includes('releases/download')) winBtn.href = FALLBACK_WIN_URL;
+        if (macBtn && !macBtn.href.includes('releases/download')) macBtn.href = FALLBACK_MAC_URL;
+        if (winBtnBottom && !winBtnBottom.href.includes('releases/download')) winBtnBottom.href = FALLBACK_WIN_URL;
+        if (macBtnBottom && !macBtnBottom.href.includes('releases/download')) macBtnBottom.href = FALLBACK_MAC_URL;
     }
 }
 
