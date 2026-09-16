@@ -155,30 +155,6 @@ function App() {
     { id: 'Smart Collections', title: 'Smart Collections', desc: 'Group fonts and scripts into project-based collections. Activate a whole collection with a single click.', icon: <Layers size={24} />, isComingSoon: true }
   ], [fonts.length]);
 
-  // Keyboard Shortcuts & Global Clicks
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        setDetailFont(null);
-        setIsSettingsOpen(false);
-        setContextMenu(null);
-      }
-      const target = e.target as HTMLElement;
-      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
-      if (!isTyping && (e.key === 'Delete' || e.key === 'Backspace') && selectedIds.size > 0 && !detailFont && !isSettingsOpen) {
-        deleteSelected();
-      }
-    };
-    const handleClick = () => setContextMenu(null);
-    
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('click', handleClick);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('click', handleClick);
-    };
-  }, [selectedIds, detailFont, isSettingsOpen, fonts]); // eslint-disable-line react-hooks/exhaustive-deps
-
   // Filtering & Sorting
   const filteredAndSortedFonts = useMemo(() => {
     let result = fonts.filter(f => 
@@ -458,6 +434,36 @@ function App() {
       toast.success(`Deleted ${customToDelete.length} font(s).`, { id: 'delete' });
     }
   };
+
+  // Keyboard shortcuts & global clicks.
+  //
+  // Declared after deleteSelected deliberately. It used to sit higher up and
+  // forward-reference it, which oxlint's react(immutability) rule flags: the
+  // access is deferred until the listener actually fires, so it works, but it
+  // reads as a temporal-dead-zone bug and the ordering was load-bearing by
+  // accident rather than by intent.
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setDetailFont(null);
+        setIsSettingsOpen(false);
+        setContextMenu(null);
+      }
+      const target = e.target as HTMLElement;
+      const isTyping = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+      if (!isTyping && (e.key === 'Delete' || e.key === 'Backspace') && selectedIds.size > 0 && !detailFont && !isSettingsOpen) {
+        deleteSelected();
+      }
+    };
+    const handleClick = () => setContextMenu(null);
+    
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('click', handleClick);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('click', handleClick);
+    };
+  }, [selectedIds, detailFont, isSettingsOpen, fonts]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggleSelectedActive = async () => {
     const toToggle = fonts.filter(f => selectedIds.has(fontId(f)));
